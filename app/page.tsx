@@ -1,103 +1,320 @@
-import Image from "next/image";
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase, Todo } from '@/lib/supabase'
+import { PlusIcon, TrashIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [todos, setTodos] = useState<Todo[]>([])
+  const [newTodo, setNewTodo] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editingText, setEditingText] = useState('')
+  const [loading, setLoading] = useState(false)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Load todos on component mount
+  useEffect(() => {
+    const email = localStorage.getItem('userEmail')
+    if (email) {
+      setUserEmail(email)
+      loadTodos(email)
+    } else {
+      const userEmail = prompt('Por favor ingresa tu email para usar la app:')
+      if (userEmail) {
+        setUserEmail(userEmail)
+        localStorage.setItem('userEmail', userEmail)
+        loadTodos(userEmail)
+      }
+    }
+  }, [])
+
+  const loadTodos = async (email: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .select('*')
+        .eq('user_email', email)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      setTodos(data || [])
+    } catch (error) {
+      console.error('Error loading todos:', error)
+      alert('Error al cargar las tareas. Revisa la consola.')
+    }
+  }
+
+  const addTodo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTodo.trim() || !userEmail) return
+
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .insert([
+          {
+            title: newTodo.trim(),
+            completed: false,
+            user_email: userEmail
+          }
+        ])
+        .select()
+
+      if (error) throw error
+      
+      if (data) {
+        setTodos([data[0], ...todos])
+        setNewTodo('')
+      }
+    } catch (error) {
+      console.error('Error adding todo:', error)
+      alert('Error al agregar la tarea')
+    }
+    setLoading(false)
+  }
+
+  const toggleComplete = async (id: number, completed: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ completed: !completed })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTodos(todos.map(todo => 
+        todo.id === id ? { ...todo, completed: !completed } : todo
+      ))
+    } catch (error) {
+      console.error('Error updating todo:', error)
+      alert('Error al actualizar la tarea')
+    }
+  }
+
+  const deleteTodo = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTodos(todos.filter(todo => todo.id !== id))
+    } catch (error) {
+      console.error('Error deleting todo:', error)
+      alert('Error al eliminar la tarea')
+    }
+  }
+
+  const startEdit = (id: number, title: string) => {
+    setEditingId(id)
+    setEditingText(title)
+  }
+
+  const saveEdit = async (id: number) => {
+    if (!editingText.trim()) return
+
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ title: editingText.trim() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTodos(todos.map(todo => 
+        todo.id === id ? { ...todo, title: editingText.trim() } : todo
+      ))
+      setEditingId(null)
+      setEditingText('')
+    } catch (error) {
+      console.error('Error updating todo:', error)
+      alert('Error al actualizar la tarea')
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditingText('')
+  }
+
+  const changeUser = () => {
+    localStorage.removeItem('userEmail')
+    const newEmail = prompt('Ingresa tu nuevo email:')
+    if (newEmail) {
+      setUserEmail(newEmail)
+      localStorage.setItem('userEmail', newEmail)
+      loadTodos(newEmail)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+            To-Do List App
+          </h1>
+          <p className="text-gray-600">
+            Usuario: <span className="font-semibold">{userEmail}</span>
+            <button 
+              onClick={changeUser}
+              className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline"
+            >
+              cambiar
+            </button>
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Add Todo Form */}
+        <form onSubmit={addTodo} className="mb-6">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newTodo}
+              onChange={(e) => setNewTodo(e.target.value)}
+              placeholder="¿Qué necesitas hacer?"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={loading}
+            />
+            <button
+              type="submit"
+              disabled={loading || !newTodo.trim()}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <PlusIcon className="w-5 h-5" />
+              {loading ? 'Agregando...' : 'Agregar'}
+            </button>
+          </div>
+        </form>
+
+        {/* Todo List */}
+        <div className="space-y-3">
+          {todos.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg">No hay tareas aún</p>
+              <p className="text-sm">¡Agrega tu primera tarea!</p>
+            </div>
+          ) : (
+            todos.map((todo) => (
+              <div
+                key={todo.id}
+                className={`bg-white rounded-lg shadow-md p-4 transition-all duration-200 hover:shadow-lg ${
+                  todo.completed ? 'opacity-75' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Complete Checkbox */}
+                  <button
+                    onClick={() => toggleComplete(todo.id, todo.completed)}
+                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      todo.completed
+                        ? 'bg-green-500 border-green-500 text-white'
+                        : 'border-gray-300 hover:border-green-400'
+                    }`}
+                  >
+                    {todo.completed && <CheckIcon className="w-4 h-4" />}
+                  </button>
+
+                  {/* Todo Text */}
+                  <div className="flex-1">
+                    {editingId === todo.id ? (
+                      <input
+                        type="text"
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') saveEdit(todo.id)
+                          if (e.key === 'Escape') cancelEdit()
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className={`${
+                          todo.completed
+                            ? 'line-through text-gray-500'
+                            : 'text-gray-800'
+                        }`}
+                      >
+                        {todo.title}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    {editingId === todo.id ? (
+                      <>
+                        <button
+                          onClick={() => saveEdit(todo.id)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                        >
+                          <CheckIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startEdit(todo.id, todo.title)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteTodo(todo.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Timestamp */}
+                <div className="mt-2 text-xs text-gray-400">
+                  Creada: {new Date(todo.created_at).toLocaleString('es-ES')}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Stats */}
+        {todos.length > 0 && (
+          <div className="mt-8 bg-white rounded-lg shadow-md p-4">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-gray-800">{todos.length}</div>
+                <div className="text-sm text-gray-600">Total</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">
+                  {todos.filter(t => t.completed).length}
+                </div>
+                <div className="text-sm text-gray-600">Completadas</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {todos.filter(t => !t.completed).length}
+                </div>
+                <div className="text-sm text-gray-600">Pendientes</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
-  );
+  )
 }
