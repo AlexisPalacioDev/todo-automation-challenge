@@ -58,7 +58,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           message: {
-            text: `#to-do ${newTodo.trim()}`
+            text: newTodo.trim()
           },
           user_email: userEmail
         }),
