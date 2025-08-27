@@ -1,0 +1,156 @@
+{
+  "name": "Todo AI Assistant - Debug",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "todo-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "webhook-node"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== DEBUG: Input recibido ===');\nconsole.log('Input JSON:', JSON.stringify($json, null, 2));\n\n// Extraer datos del input\nlet text, userEmail;\n\nif ($json.message && $json.message.text) {\n  text = $json.message.text;\n  userEmail = $json.user_email || 'default@example.com';\n  \n  console.log('✅ Datos extraídos:');\n  console.log('- Text:', text);\n  console.log('- Email:', userEmail);\n  \n  return [{ \n    json: { \n      title: text.trim(), \n      user_email: userEmail,\n      debug: 'Data extracted successfully'\n    } \n  }];\n} else {\n  console.log('❌ Formato de entrada inválido');\n  return [{ \n    json: { \n      error: true, \n      message: 'Invalid input format',\n      received: $json\n    } \n  }];\n}"
+      },
+      "name": "Debug Extract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "id": "debug-extract-node"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== DEBUG: Antes de OpenAI ===');\nconsole.log('Input:', JSON.stringify($json, null, 2));\n\n// Simular respuesta de OpenAI para debug\nconst enhanced = {\n  enhanced_title: $json.title + ' (Enhanced by AI)',\n  changed: true,\n  improvements: 'Added AI enhancement marker'\n};\n\nconsole.log('✅ OpenAI simulado:', enhanced);\n\nreturn [{ json: enhanced }];"
+      },
+      "name": "Debug AI (Simulated)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "id": "debug-ai-node"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xbssinixkkfnhqpivtyz.supabase.co/rest/v1/todos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhic3Npbml4a2tmbmhxcGl2dHl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUzMjE0MzcsImV4cCI6MjA1MDg5NzQzN30.lMLYJUcPDwlz3SQKMo05TW5LIDVhMVEa8QRn9hZO6_k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhic3Npbml4a2tmbmhxcGl2dHl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUzMjE0MzcsImV4cCI6MjA1MDg5NzQzN30.lMLYJUcPDwlz3SQKMo05TW5LIDVhMVEa8QRn9hZO6_k"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.enhanced_title }}\",\n  \"completed\": false,\n  \"user_email\": \"{{ $('Debug Extract').item.json.user_email }}\"\n}",
+        "options": {}
+      },
+      "name": "Debug Supabase Insert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 300],
+      "id": "debug-supabase-node"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('=== DEBUG: Respuesta Supabase ===');\nconsole.log('Supabase response:', JSON.stringify($json, null, 2));\n\nconst extractData = $('Debug Extract').item.json;\nconst aiData = $('Debug AI (Simulated)').item.json;\n\nconst response = {\n  success: true,\n  message: 'Tarea creada exitosamente (DEBUG)',\n  todo: $json[0] || $json,\n  aiEnhanced: aiData.changed,\n  original: extractData.title,\n  enhanced: aiData.enhanced_title,\n  debug: {\n    extractData: extractData,\n    aiData: aiData,\n    supabaseResponse: $json\n  }\n};\n\nconsole.log('✅ Respuesta final:', response);\n\nreturn [{ json: response }];"
+      },
+      "name": "Debug Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "id": "debug-format-node"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "name": "Debug Web Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "id": "debug-response-node"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Debug Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debug Extract": {
+      "main": [
+        [
+          {
+            "node": "Debug AI (Simulated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debug AI (Simulated)": {
+      "main": [
+        [
+          {
+            "node": "Debug Supabase Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debug Supabase Insert": {
+      "main": [
+        [
+          {
+            "node": "Debug Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debug Format Response": {
+      "main": [
+        [
+          {
+            "node": "Debug Web Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

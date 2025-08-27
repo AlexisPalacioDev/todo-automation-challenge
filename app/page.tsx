@@ -11,6 +11,19 @@ export default function Home() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingText, setEditingText] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isTestMode, setIsTestMode] = useState(true)
+  const [customUrl, setCustomUrl] = useState('')
+  const [showUrlInput, setShowUrlInput] = useState(false)
+
+  // Obtener la URL del webhook según el modo
+  const getWebhookUrl = () => {
+    if (customUrl) {
+      return customUrl
+    }
+    return isTestMode 
+      ? 'https://n8n-n8n.lehnwx.easypanel.host/webhook-test/todo-webhook'
+      : 'https://n8n-n8n.lehnwx.easypanel.host/webhook/todo-webhook'
+  }
 
   // Load todos on component mount
   useEffect(() => {
@@ -50,8 +63,10 @@ export default function Home() {
 
     setLoading(true)
     try {
+      const webhookUrl = getWebhookUrl()
+      
       // Usar N8N workflow para procesar y crear la tarea
-      const response = await fetch('https://n8n-n8n.lehnwx.easypanel.host/webhook/todo-webhook', {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,37 +80,18 @@ export default function Home() {
       })
 
       if (response.ok) {
+        const result = await response.json()
+        console.log('Todo created via N8N:', result)
+        
         // Recargar todos desde Supabase para ver la nueva tarea
         await loadTodos(userEmail)
         setNewTodo('')
       } else {
-        throw new Error('Error en el workflow N8N')
+        throw new Error(`Error en N8N workflow (${isTestMode ? 'Test' : 'Producción'})`)
       }
     } catch (error) {
       console.error('Error adding todo via N8N:', error)
-      // Fallback: crear directamente en Supabase si N8N falla
-      try {
-        const { data, error } = await supabase
-          .from('todos')
-          .insert([
-            {
-              title: newTodo.trim(),
-              completed: false,
-              user_email: userEmail
-            }
-          ])
-          .select()
-
-        if (error) throw error
-        
-        if (data) {
-          setTodos([data[0], ...todos])
-          setNewTodo('')
-        }
-      } catch (fallbackError) {
-        console.error('Error in fallback:', fallbackError)
-        alert('Error al agregar la tarea')
-      }
+      alert(`Error al agregar la tarea en modo ${isTestMode ? 'Test' : 'Producción'}`)
     }
     setLoading(false)
   }
@@ -195,6 +191,62 @@ export default function Home() {
           </p>
         </div>
 
+        {/* N8N Controls */}
+        <div className="mb-6 bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="flex flex-col gap-4">
+            {/* Mode Toggle */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-white font-medium">Modo N8N:</span>
+                <button
+                  onClick={() => setIsTestMode(!isTestMode)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isTestMode 
+                      ? 'bg-yellow-600 text-white hover:bg-yellow-700' 
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  {isTestMode ? '🧪 Test Mode' : '🚀 Producción'}
+                </button>
+              </div>
+              
+              <button
+                onClick={() => setShowUrlInput(!showUrlInput)}
+                className="text-blue-400 hover:text-blue-300 text-sm underline"
+              >
+                {showUrlInput ? 'Ocultar URL' : 'URL Personalizada'}
+              </button>
+            </div>
+
+            {/* Current URL Display */}
+            <div className="text-sm">
+              <span className="text-gray-400">URL Actual: </span>
+              <code className="text-green-400 bg-slate-700 px-2 py-1 rounded">
+                {getWebhookUrl()}
+              </code>
+            </div>
+
+            {/* Custom URL Input */}
+            {showUrlInput && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customUrl}
+                  onChange={(e) => setCustomUrl(e.target.value)}
+                  placeholder="https://tu-n8n.com/webhook/todo-webhook"
+                  className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={() => setCustomUrl('')}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Limpiar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Add Todo Form */}
         <form onSubmit={addTodo} className="mb-6">
           <div className="flex gap-2">
@@ -212,7 +264,7 @@ export default function Home() {
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <PlusIcon className="w-5 h-5" />
-              {loading ? 'Procesando...' : 'Crear con IA'}
+              {loading ? 'Procesando...' : `Crear con IA ${isTestMode ? '(Test)' : '(Prod)'}`}
             </button>
           </div>
         </form>
