@@ -50,26 +50,52 @@ export default function Home() {
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('todos')
-        .insert([
-          {
-            title: newTodo.trim(),
-            completed: false,
-            user_email: userEmail
-          }
-        ])
-        .select()
+      // Usar N8N workflow para procesar y crear la tarea
+      const response = await fetch('https://n8n-n8n.lehnwx.easypanel.host/webhook/todo-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: {
+            text: `#to-do ${newTodo.trim()}`
+          },
+          user_email: userEmail
+        }),
+      })
 
-      if (error) throw error
-      
-      if (data) {
-        setTodos([data[0], ...todos])
+      if (response.ok) {
+        // Recargar todos desde Supabase para ver la nueva tarea
+        await loadTodos(userEmail)
         setNewTodo('')
+      } else {
+        throw new Error('Error en el workflow N8N')
       }
     } catch (error) {
-      console.error('Error adding todo:', error)
-      alert('Error al agregar la tarea')
+      console.error('Error adding todo via N8N:', error)
+      // Fallback: crear directamente en Supabase si N8N falla
+      try {
+        const { data, error } = await supabase
+          .from('todos')
+          .insert([
+            {
+              title: newTodo.trim(),
+              completed: false,
+              user_email: userEmail
+            }
+          ])
+          .select()
+
+        if (error) throw error
+        
+        if (data) {
+          setTodos([data[0], ...todos])
+          setNewTodo('')
+        }
+      } catch (fallbackError) {
+        console.error('Error in fallback:', fallbackError)
+        alert('Error al agregar la tarea')
+      }
     }
     setLoading(false)
   }
@@ -151,18 +177,18 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+          <h1 className="text-4xl font-bold text-white mb-2">
             To-Do List App
           </h1>
-          <p className="text-gray-600">
-            Usuario: <span className="font-semibold">{userEmail}</span>
+          <p className="text-gray-300">
+            Usuario: <span className="font-semibold text-white">{userEmail}</span>
             <button 
               onClick={changeUser}
-              className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline"
+              className="ml-2 text-blue-400 hover:text-blue-300 text-sm underline"
             >
               cambiar
             </button>
@@ -176,8 +202,8 @@ export default function Home() {
               type="text"
               value={newTodo}
               onChange={(e) => setNewTodo(e.target.value)}
-              placeholder="¿Qué necesitas hacer?"
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="¿Qué necesitas hacer? (Se mejorará con IA)"
+              className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
             />
             <button
@@ -186,7 +212,7 @@ export default function Home() {
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <PlusIcon className="w-5 h-5" />
-              {loading ? 'Agregando...' : 'Agregar'}
+              {loading ? 'Procesando...' : 'Crear con IA'}
             </button>
           </div>
         </form>
@@ -194,15 +220,15 @@ export default function Home() {
         {/* Todo List */}
         <div className="space-y-3">
           {todos.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-400">
               <p className="text-lg">No hay tareas aún</p>
-              <p className="text-sm">¡Agrega tu primera tarea!</p>
+              <p className="text-sm">¡Agrega tu primera tarea con IA!</p>
             </div>
           ) : (
             todos.map((todo) => (
               <div
                 key={todo.id}
-                className={`bg-white rounded-lg shadow-md p-4 transition-all duration-200 hover:shadow-lg ${
+                className={`bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4 transition-all duration-200 hover:shadow-xl hover:border-slate-600 ${
                   todo.completed ? 'opacity-75' : ''
                 }`}
               >
@@ -226,7 +252,7 @@ export default function Home() {
                         type="text"
                         value={editingText}
                         onChange={(e) => setEditingText(e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 bg-slate-700 border border-slate-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') saveEdit(todo.id)
                           if (e.key === 'Escape') cancelEdit()
@@ -238,7 +264,7 @@ export default function Home() {
                         className={`${
                           todo.completed
                             ? 'line-through text-gray-500'
-                            : 'text-gray-800'
+                            : 'text-white'
                         }`}
                       >
                         {todo.title}
@@ -267,13 +293,13 @@ export default function Home() {
                       <>
                         <button
                           onClick={() => startEdit(todo.id, todo.title)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          className="p-2 text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
                         >
                           <PencilIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteTodo(todo.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
                         >
                           <TrashIcon className="w-4 h-4" />
                         </button>
@@ -283,7 +309,7 @@ export default function Home() {
                 </div>
 
                 {/* Timestamp */}
-                <div className="mt-2 text-xs text-gray-400">
+                <div className="mt-2 text-xs text-gray-500">
                   Creada: {new Date(todo.created_at).toLocaleString('es-ES')}
                 </div>
               </div>
@@ -293,27 +319,40 @@ export default function Home() {
 
         {/* Stats */}
         {todos.length > 0 && (
-          <div className="mt-8 bg-white rounded-lg shadow-md p-4">
+          <div className="mt-8 bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-gray-800">{todos.length}</div>
-                <div className="text-sm text-gray-600">Total</div>
+                <div className="text-2xl font-bold text-white">{todos.length}</div>
+                <div className="text-sm text-gray-400">Total</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-green-400">
                   {todos.filter(t => t.completed).length}
                 </div>
-                <div className="text-sm text-gray-600">Completadas</div>
+                <div className="text-sm text-gray-400">Completadas</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-2xl font-bold text-blue-400">
                   {todos.filter(t => !t.completed).length}
                 </div>
-                <div className="text-sm text-gray-600">Pendientes</div>
+                <div className="text-sm text-gray-400">Pendientes</div>
               </div>
             </div>
           </div>
         )}
+
+        {/* N8N Integration Info */}
+        <div className="mt-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-white mb-2">🤖 Potenciado por IA</h3>
+            <p className="text-sm text-gray-400">
+              Tus tareas son procesadas por inteligencia artificial a través de N8N workflow
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              OpenAI + Telegram + Supabase Integration
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )
