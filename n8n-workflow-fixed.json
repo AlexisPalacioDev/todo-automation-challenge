@@ -1,0 +1,273 @@
+{
+  "name": "Todo List AI Assistant - Fixed",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "todo-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger", 
+      "typeVersion": 1.2,
+      "position": [240, 500],
+      "credentials": {
+        "telegramApi": {
+          "name": "YOUR_TELEGRAM_BOT_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.message ? $json.message.text : $json.text }}",
+              "operation": "contains",
+              "value2": "#to-do"
+            }
+          ]
+        }
+      },
+      "name": "Check for #to-do",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener datos del input actual\nconst inputData = $input.first().json;\n\nlet text, userEmail, isFromTelegram = false;\n\n// Detectar si viene de Telegram (tiene estructura message.text)\nif (inputData.message && inputData.message.text) {\n  // Desde Telegram\n  text = inputData.message.text;\n  userEmail = 'telegram-user@example.com';\n  isFromTelegram = true;\n} else if (inputData.message && typeof inputData.message === 'object') {\n  // Desde Web App\n  text = inputData.message.text || '';\n  userEmail = inputData.user_email || 'webapp@example.com';\n  isFromTelegram = false;\n} else {\n  return [{ json: { error: true, msg: 'Formato no reconocido' } }];\n}\n\n// Extraer texto de la tarea\nconst todoText = text.replace('#to-do', '').trim();\n\nif (!todoText) {\n  return [{ json: { \n    error: true, \n    msg: 'Falta texto después de #to-do',\n    isFromTelegram: isFromTelegram \n  } }];\n}\n\nreturn [{ json: { \n  title: todoText, \n  user_email: userEmail, \n  enhance: true,\n  isFromTelegram: isFromTelegram,\n  originalText: text,\n  originalInput: inputData\n} }];"
+      },
+      "name": "Extract Todo Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Eres un asistente que mejora títulos de tareas. Convierte títulos simples en títulos más claros y específicos.\n\nReglas:\n1. Mantén el título conciso pero claro\n2. Haz que sea específico y accionable\n3. Si es muy vago, sugiere detalles\n4. Mantén el idioma original\n5. SIEMPRE responde en formato JSON válido",
+              "role": "system"
+            },
+            {
+              "content": "Mejora este título: \"{{ $json.title }}\"\n\nFormato JSON:\n{\n  \"enhanced_title\": \"título mejorado\",\n  \"changed\": true,\n  \"improvements\": \"explicación cambios\"\n}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "name": "AI Enhance Title",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [900, 300],
+      "credentials": {
+        "openAiApi": {
+          "name": "YOUR_OPENAI_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://todo-automation-challenge.vercel.app/api/n8n/add-todo",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.enhanced_title }}\",\n  \"user_email\": \"{{ $('Extract Todo Data').item.json.user_email }}\",\n  \"enhance\": false\n}",
+        "options": {}
+      },
+      "name": "Create Todo in Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener datos de nodos anteriores\nconst extractedData = $('Extract Todo Data').item.json;\nconst aiData = $input.first().json;\nconst supabaseData = $('Create Todo in Supabase').item.json;\n\nconst isFromTelegram = extractedData.isFromTelegram;\n\nif (isFromTelegram) {\n  // Para Telegram necesitamos el chat_id del mensaje original\n  const originalInput = extractedData.originalInput;\n  const chatId = originalInput.message.chat.id;\n  \n  let text = `✅ Tarea creada: \"${aiData.enhanced_title}\"`;\n  \n  if (aiData.changed) {\n    text += `\\n\\n🤖 IA mejoró:\\n• Original: \"${extractedData.title}\"\\n• Mejorado: \"${aiData.enhanced_title}\"`;\n  }\n  \n  return [{ json: { \n    chat_id: chatId, \n    text: text,\n    isFromTelegram: true\n  } }];\n} else {\n  // Para Web App\n  return [{ json: {\n    message: `Tarea creada: \"${aiData.enhanced_title}\"`,\n    status: \"success\",\n    aiEnhanced: aiData.changed || false,\n    original: extractedData.title,\n    enhanced: aiData.enhanced_title,\n    isFromTelegram: false\n  } }];\n}"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isFromTelegram }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Route Response",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1780, 200],
+      "credentials": {
+        "telegramApi": {
+          "name": "YOUR_TELEGRAM_BOT_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"{{ $json.message }}\",\n  \"enhanced\": \"{{ $json.enhanced }}\"\n}",
+        "options": {}
+      },
+      "name": "Web App Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"error\": true,\n  \"message\": \"Formato: #to-do <tu tarea>\"\n}",
+        "options": {}
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check for #to-do",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check for #to-do",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for #to-do": {
+      "main": [
+        [
+          {
+            "node": "Extract Todo Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Todo Data": {
+      "main": [
+        [
+          {
+            "node": "AI Enhance Title",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Enhance Title": {
+      "main": [
+        [
+          {
+            "node": "Create Todo in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Todo in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Route Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Web App Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

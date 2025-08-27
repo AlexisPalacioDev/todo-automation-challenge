@@ -51,7 +51,7 @@ export default function Home() {
     setLoading(true)
     try {
       // Usar N8N workflow para procesar y crear la tarea
-      const response = await fetch('https://n8n-n8n.lehnwx.easypanel.host/webhook/todo-webhook', {
+      const response = await fetch('https://n8n-n8n.lehnwx.easypanel.host/webhook-test/todo-webhook', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
