@@ -70,7 +70,7 @@ export default function Home() {
         loadTodos(userEmail)
       }
     }
-  }, [])
+  }, [isValidEmail])
 
   const loadTodos = async (email: string) => {
     try {
@@ -371,7 +371,7 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  <p className="text-lg">No hay tareas en la categoría "{selectedCategory}"</p>
+                  <p className="text-lg">No hay tareas en la categoría &quot;{selectedCategory}&quot;</p>
                   <p className="text-sm">Prueba con otra categoría o crea una nueva tarea</p>
                 </>
               )}
