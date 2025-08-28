@@ -82,6 +82,8 @@ export default function Home() {
       
       if (error) throw error
       const todosData = data || []
+      console.log('Todos loaded from Supabase:', todosData)
+      console.log('Categories found:', todosData.map(t => t.category).filter(Boolean))
       setTodos(todosData)
       updateCategories(todosData)
     } catch (error) {
@@ -120,6 +122,15 @@ export default function Home() {
       if (response.ok) {
         const result = await response.json()
         console.log('Todo created via N8N:', result)
+        
+        // Debug: mostrar respuesta de N8N
+        if (result.data && result.data.todo) {
+          console.log('Category data from N8N:', {
+            category: result.data.todo.category,
+            category_is_custom: result.data.todo.category_is_custom,
+            category_reason: result.data.todo.category_reason
+          })
+        }
         
         // Recargar todos desde Supabase para ver la nueva tarea
         await loadTodos(userEmail)
