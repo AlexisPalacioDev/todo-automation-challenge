@@ -15,6 +15,12 @@ export default function Home() {
   const [customUrl, setCustomUrl] = useState('')
   const [showUrlInput, setShowUrlInput] = useState(false)
 
+  // Validar email con expresión regular
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
   // Obtener la URL del webhook según el modo
   const getWebhookUrl = () => {
     if (customUrl) {
@@ -28,11 +34,18 @@ export default function Home() {
   // Load todos on component mount
   useEffect(() => {
     const email = localStorage.getItem('userEmail')
-    if (email) {
+    if (email && isValidEmail(email)) {
       setUserEmail(email)
       loadTodos(email)
     } else {
-      const userEmail = prompt('Por favor ingresa tu email para usar la app:')
+      // Si no hay email o es inválido, pedirlo
+      let userEmail = prompt('Por favor ingresa tu email para usar la app:')
+      
+      // Validar el email ingresado
+      while (userEmail && !isValidEmail(userEmail)) {
+        userEmail = prompt('Email inválido. Por favor ingresa un email válido (ejemplo: usuario@dominio.com):')
+      }
+      
       if (userEmail) {
         setUserEmail(userEmail)
         localStorage.setItem('userEmail', userEmail)
@@ -59,7 +72,12 @@ export default function Home() {
 
   const addTodo = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTodo.trim() || !userEmail) return
+    if (!newTodo.trim() || !userEmail || !isValidEmail(userEmail)) {
+      if (!isValidEmail(userEmail)) {
+        alert('Por favor configura un email válido antes de crear tareas')
+      }
+      return
+    }
 
     setLoading(true)
     try {
@@ -164,7 +182,13 @@ export default function Home() {
 
   const changeUser = () => {
     localStorage.removeItem('userEmail')
-    const newEmail = prompt('Ingresa tu nuevo email:')
+    let newEmail = prompt('Ingresa tu nuevo email:')
+    
+    // Validar el nuevo email
+    while (newEmail && !isValidEmail(newEmail)) {
+      newEmail = prompt('Email inválido. Por favor ingresa un email válido (ejemplo: usuario@dominio.com):')
+    }
+    
     if (newEmail) {
       setUserEmail(newEmail)
       localStorage.setItem('userEmail', newEmail)
@@ -181,7 +205,11 @@ export default function Home() {
             To-Do List App
           </h1>
           <p className="text-gray-300">
-            Usuario: <span className="font-semibold text-white">{userEmail}</span>
+            Usuario: 
+            <span className={`font-semibold ml-1 ${isValidEmail(userEmail) ? 'text-green-400' : 'text-red-400'}`}>
+              {userEmail}
+              {isValidEmail(userEmail) ? ' ✓' : ' ⚠️'}
+            </span>
             <button 
               onClick={changeUser}
               className="ml-2 text-blue-400 hover:text-blue-300 text-sm underline"
