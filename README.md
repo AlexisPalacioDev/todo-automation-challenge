@@ -1,5 +1,8 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Todo App with N8N Integration
+AI-powered todo application with category filtering and N8N workflow automation.
+
 ## Getting Started
 
 First, run the development server:
