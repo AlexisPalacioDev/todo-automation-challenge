@@ -1,5 +1,5 @@
 {
-  "name": "My workflow 7",
+  "name": "To-doF",
   "nodes": [
     {
       "parameters": {
@@ -12,44 +12,11 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -816,
-        -32
+        -832,
+        48
       ],
       "id": "a71c75e2-e48a-4657-adf2-c673803f626f",
       "webhookId": "48e9624f-e0ef-4f8e-b9b2-5c5f7c558f66"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://todo-automation-challenge.vercel.app/api/n8n/add-todo",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "=  {\n    \"title\": \" {{ $json.message.content.enhanced_title }}\",\n    \"user_email\": \"{{ $('Extract Todo').item.json.user_email }}\",\n    \"enhance\": {{ $('Extract Todo').item.json.enhance }}\n  }",
-        "options": {}
-      },
-      "name": "Crear via Web App",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [
-        0,
-        -64
-      ],
-      "id": "4ba13977-de72-41ff-9b7f-c2d2478e5fc7"
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Tarea creada via N8N → Web App → Supabase\",\n  \"data\": {{ JSON.stringify($json) }}\n}",
-        "options": {}
-      },
-      "name": "Respuesta Final",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        224,
-        -176
-      ],
-      "id": "805c7172-c41a-4843-8e78-c674446bad25"
     },
     {
       "parameters": {
@@ -76,7 +43,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const b = $json.body;\n\n// Toma el chat_id directamente del Telegram Trigger\nconst chatId = $('Telegram Trigger').item.json.message.chat.id;\n\nlet text = `✅ Todo creado: \"${b.todo.title}\"\\n` +\n           `👤 Usuario: ${b.todo.user_email}`;\n\nif (b.enhancement && b.enhancement.enhanced_title) {\n  text += `\\n\\n🤖 Mejora IA\\n• Original: \"${b.enhancement.original_title}\"` +\n          `\\n• Mejorado: \"${b.enhancement.enhanced_title}\"`;\n}\n\nreturn [{ json: { chat_id: chatId, text } }];\n"
+        "jsCode": "const http = $json ?? {};\nconst ai = $('Message a model').first().json?.message?.content ?? {};\nconst extract = $('Extract Todo').first().json ?? {};\n\nconst title   = ai.title ?? http?.todo?.title ?? http?.n8n_response?.title ?? 'Tarea';\nconst user    = http?.todo?.user_email ?? http?.n8n_response?.user ?? extract.user_email ?? 'desconocido';\nconst message = ai.message ?? `✅ To-do creada: ${title}`;\n\nconst category           = ai.category ?? 'otro';\nconst category_is_custom = ai.category_is_custom ?? false;\nconst category_reason    = ai.category_reason;\n\n// chat_id: si vino de Telegram, lo pasó Extract Todo\nconst chat_id = extract.chat_id ?? null;\n\nconst status = http?.n8n_response?.status ?? (http?.success ? 'created' : 'error');\n\nreturn [{\n  json: {\n    chat_id,\n    text: message,\n    response: message,\n    title,\n    user,\n    category,\n    category_is_custom,\n    category_reason,\n    status\n  }\n}];\n"
       },
       "id": "3ca5a2a0-9250-48e8-8921-be79dacbbfb7",
       "name": "Format Success Response",
@@ -96,7 +63,7 @@
           "parameters": [
             {
               "name": "title",
-              "value": "={{ $json.message.content.enhanced_title }}"
+              "value": "={{ $json.message.content.title }}"
             },
             {
               "name": "user_email",
@@ -121,13 +88,13 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
-        16,
-        112
+        0,
+        240
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Code node (Run Once for Each Item)\n\n// Toma el primer item de entrada\nconst item = $input.first() ?? {};\nconst data = item.json ?? {};\n\n// Detectar origen y extraer texto + email\nlet text = '';\nlet userEmail = 'webapp@example.com';\n\n// — Caso Web App (Webhook): el body viene anidado en json.body\nif (data.body?.message?.text) {\n  text = data.body.message.text || '';\n  userEmail = data.body.user_email || 'webapp@example.com';\n}\n// — Caso Telegram Trigger directo al Code node: message en la raíz\nelse if (data.message?.text) {\n  text = data.message.text || '';\n  userEmail = 'alexis26-93@live.com'; // fijo para Telegram\n}\n\n// Normalizar texto (quitar #to-do si viene)\nconst todoText = (text || '').replace('#to-do', '').trim();\n\nif (!todoText) {\n  return [\n    { json: { error: true, msg: 'Falta texto después de #to-do' } }\n  ];\n}\n\nreturn [\n  { json: { title: todoText, user_email: userEmail, enhance: true } }\n];\n"
+        "jsCode": "// Code node (Run Once for Each Item)\n\n// Toma el primer item de entrada\nconst item = $input.first() ?? {};\nconst data = item.json ?? {};\n\n// Detectar origen y extraer texto + email\nlet text = '';\nlet userEmail = 'webapp@example.com';\nlet chatId;\n\n// — Caso Web App (Webhook): el body viene anidado en json.body\nif (data.body?.message?.text) {\n  text = data.body.message.text || '';\n  userEmail = data.body.user_email || 'webapp@example.com';\n}\n// — Caso Telegram Trigger directo al Code node: message en la raíz\nelse if (data.message?.text) {\n  text = data.message.text || '';\n  userEmail = 'alexis26-93@live.com';\n\nchatId = $input.first().json.message.chat.id;\n// fijo para Telegram\n}\n\n// Normalizar texto (quitar #to-do si viene)\nconst todoText = (text || '').replace('#to-do', '').trim();\n\nif (!todoText) {\n  return [\n    { json: { error: true, msg: 'Falta texto después de #to-do' } }\n  ];\n}\n\nreturn [\n  { json: { title: todoText, user_email: userEmail, enhance: true,\n  ...(chatId != null ? { chat_id: chatId } : {})\n  } \n}];\n"
       },
       "id": "4c0d179f-6554-40d3-b673-a2747524cea1",
       "name": "Extract Todo",
@@ -140,47 +107,27 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $json.message.from.id }}",
-        "text": "=Envía: #to-do <tu tarea> Ejemplo: #to-do comprar leche y pan",
+        "chatId": "={{ $json.chat_id || null }}",
+        "text": "={{ $json.response }}",
         "additionalFields": {}
       },
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -560,
-        304
-      ],
-      "id": "a887d97d-ff4d-4aea-bce5-bbd2e57500e6",
-      "name": "Send a text message",
-      "webhookId": "720f2cca-7659-452d-9577-23d397455ccc",
-      "credentials": {
-        "telegramApi": {
-          "id": "qvjFJVkNpIgIJmaX",
-          "name": "Bencio"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.chat_id }}",
-        "text": "={{ $json.text }}",
-        "additionalFields": {}
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        464,
-        16
+        672,
+        112
       ],
       "id": "77144e12-2b3b-4cdc-9615-0fe4228f8839",
       "name": "Send a text message1",
       "webhookId": "720f2cca-7659-452d-9577-23d397455ccc",
+      "alwaysOutputData": false,
       "credentials": {
         "telegramApi": {
           "id": "qvjFJVkNpIgIJmaX",
           "name": "Bencio"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -193,11 +140,11 @@
         "messages": {
           "values": [
             {
-              "content": "Eres un normalizador de títulos para una app de tareas. \nDevuelves SIEMPRE JSON con un título corregido y claro.\n",
+              "content": "Eres un normalizador y categorizador de títulos para una app de tareas.\n\nInstrucciones:\n1) Responde SIEMPRE con JSON válido y SOLO JSON.\n2) Detecta el idioma del usuario y usa ese mismo idioma en \"title\" y \"message\".\n3) Devuelve exactamente estas claves:\n   - \"title\": título corregido, claro y conciso.\n   - \"message\": debe empezar con \"✅ To-do creada: \" seguido del título corregido.\n   - \"category\": categoría principal en minúsculas y una sola palabra.\n   - \"category_is_custom\": true si no pertenece a la lista base; false si sí pertenece.\n   - \"category_reason\": breve justificación (máx. 15 palabras).\n\n4) Categorías base (elige una si aplica):\n   [\"estudio\",\"compras\",\"facturas\",\"trabajo\",\"salud\",\"ocio\",\"hogar\",\"finanzas\",\"viajes\",\"tecnología\",\"administrativo\"]\n\n5) Si la tarea no encaja con claridad en la lista base, propone una categoría nueva adecuada (p.ej., \"mantenimiento\", \"reparaciones\", \"deportes\") y marca \"category_is_custom\": true.\n\n6) No agregues nada fuera del JSON. No incluyas explicaciones adicionales.\n",
               "role": "system"
             },
             {
-              "content": "=Corrige este texto para que sea un título corto y entendible: \n\"{{ $json.title }}\"\nFormato de salida JSON:\n{\n  \"enhanced_title\": \"string\",\n  \"changed\": true|false\n}\n"
+              "content": "={{ $json.title }}\n"
             }
           ]
         },
@@ -248,25 +195,9 @@
         ]
       ]
     },
-    "Crear via Web App": {
-      "main": [
-        [
-          {
-            "node": "Format Success Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Format Success Response": {
       "main": [
         [
-          {
-            "node": "Send a text message1",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "Success Response",
             "type": "main",
@@ -277,7 +208,13 @@
     },
     "Create Todo": {
       "main": [
-        []
+        [
+          {
+            "node": "Format Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Extract Todo": {
@@ -306,7 +243,18 @@
       "main": [
         [
           {
-            "node": "Crear via Web App",
+            "node": "Create Todo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
             "type": "main",
             "index": 0
           }
@@ -318,8 +266,9 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "c28fdc3e-33ca-4429-97bf-22b94b4f719e",
+  "versionId": "0cd36ac8-1df6-4f43-b626-c8067c1a3889",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "d91aa16ea53d37fd73789f383cf9eaba769caba3a9692b8a422b4f8924d4d856"
   },
   "id": "eamJZ5FzDfqVTPFF",
