@@ -14,8 +14,6 @@ export default function Home() {
   const [isTestMode, setIsTestMode] = useState(true)
   const [customUrl, setCustomUrl] = useState('')
   const [showUrlInput, setShowUrlInput] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [categories, setCategories] = useState<string[]>(['all'])
 
   // Validar email con expresión regular
   const isValidEmail = (email: string) => {
@@ -33,21 +31,6 @@ export default function Home() {
       : 'https://n8n-n8n.lehnwx.easypanel.host/webhook/todo-webhook'
   }
 
-  // Actualizar categorías disponibles basado en todos
-  const updateCategories = (todos: Todo[]) => {
-    const uniqueCategories = new Set(['all'])
-    todos.forEach(todo => {
-      if (todo.category) {
-        uniqueCategories.add(todo.category)
-      }
-    })
-    setCategories(Array.from(uniqueCategories))
-  }
-
-  // Filtrar todos por categoría
-  const filteredTodos = selectedCategory === 'all' 
-    ? todos 
-    : todos.filter(todo => todo.category === selectedCategory)
 
   // Load todos on component mount
   useEffect(() => {
@@ -83,9 +66,7 @@ export default function Home() {
       if (error) throw error
       const todosData = data || []
       console.log('Todos loaded from Supabase:', todosData)
-      console.log('Categories found:', todosData.map(t => t.category).filter(Boolean))
       setTodos(todosData)
-      updateCategories(todosData)
     } catch (error) {
       console.error('Error loading todos:', error)
       alert('Error al cargar las tareas. Revisa la consola.')
@@ -122,15 +103,6 @@ export default function Home() {
       if (response.ok) {
         const result = await response.json()
         console.log('Todo created via N8N:', result)
-        
-        // Debug: mostrar respuesta de N8N
-        if (result.data && result.data.todo) {
-          console.log('Category data from N8N:', {
-            category: result.data.todo.category,
-            category_is_custom: result.data.todo.category_is_custom,
-            category_reason: result.data.todo.category_reason
-          })
-        }
         
         // Recargar todos desde Supabase para ver la nueva tarea
         await loadTodos(userEmail)
@@ -306,37 +278,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Category Filters */}
-        {categories.length > 1 && (
-          <div className="mb-6 bg-slate-800 border border-slate-700 rounded-lg p-4">
-            <div className="flex flex-col gap-3">
-              <h3 className="text-white font-medium">Filtrar por categoría:</h3>
-              <div className="flex flex-wrap gap-2">
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedCategory === category
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
-                    }`}
-                  >
-                    {category === 'all' ? '🏷️ Todas' : `📂 ${category}`}
-                    <span className="ml-1 text-xs opacity-75">
-                      ({category === 'all' ? todos.length : todos.filter(t => t.category === category).length})
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {selectedCategory !== 'all' && (
-                <div className="text-xs text-gray-400">
-                  Mostrando {filteredTodos.length} de {todos.length} tareas
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Add Todo Form */}
         <form onSubmit={addTodo} className="mb-6">
@@ -362,22 +303,13 @@ export default function Home() {
 
         {/* Todo List */}
         <div className="space-y-3">
-          {filteredTodos.length === 0 ? (
+          {todos.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
-              {todos.length === 0 ? (
-                <>
-                  <p className="text-lg">No hay tareas aún</p>
-                  <p className="text-sm">¡Agrega tu primera tarea con IA!</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-lg">No hay tareas en la categoría &quot;{selectedCategory}&quot;</p>
-                  <p className="text-sm">Prueba con otra categoría o crea una nueva tarea</p>
-                </>
-              )}
+              <p className="text-lg">No hay tareas aún</p>
+              <p className="text-sm">¡Agrega tu primera tarea con IA!</p>
             </div>
           ) : (
-            filteredTodos.map((todo) => (
+            todos.map((todo) => (
               <div
                 key={todo.id}
                 className={`bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4 transition-all duration-200 hover:shadow-xl hover:border-slate-600 ${
@@ -422,21 +354,6 @@ export default function Home() {
                         >
                           {todo.title}
                         </span>
-                        {todo.category && (
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-600/30">
-                              📂 {todo.category}
-                            </span>
-                            {todo.category_is_custom && (
-                              <span className="text-xs text-yellow-400">✨ personalizada</span>
-                            )}
-                          </div>
-                        )}
-                        {todo.category_reason && (
-                          <p className="text-xs text-gray-400 italic">
-                            {todo.category_reason}
-                          </p>
-                        )}
                       </div>
                     )}
                   </div>
@@ -491,31 +408,22 @@ export default function Home() {
           <div className="mt-8 bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-white">{filteredTodos.length}</div>
-                <div className="text-sm text-gray-400">
-                  {selectedCategory === 'all' ? 'Total' : `En ${selectedCategory}`}
-                </div>
+                <div className="text-2xl font-bold text-white">{todos.length}</div>
+                <div className="text-sm text-gray-400">Total</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-green-400">
-                  {filteredTodos.filter(t => t.completed).length}
+                  {todos.filter(t => t.completed).length}
                 </div>
                 <div className="text-sm text-gray-400">Completadas</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-blue-400">
-                  {filteredTodos.filter(t => !t.completed).length}
+                  {todos.filter(t => !t.completed).length}
                 </div>
                 <div className="text-sm text-gray-400">Pendientes</div>
               </div>
             </div>
-            {selectedCategory !== 'all' && (
-              <div className="mt-3 pt-3 border-t border-slate-700 text-center">
-                <div className="text-xs text-gray-400">
-                  Total general: {todos.length} tareas • {categories.length - 1} categorías
-                </div>
-              </div>
-            )}
           </div>
         )}
 
