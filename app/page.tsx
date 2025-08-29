@@ -14,6 +14,8 @@ export default function Home() {
   const [isTestMode, setIsTestMode] = useState(true)
   const [customUrl, setCustomUrl] = useState('')
   const [showUrlInput, setShowUrlInput] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [showN8NCard, setShowN8NCard] = useState(false)
 
   // Validar email con expresión regular
   const isValidEmail = (email: string) => {
@@ -53,7 +55,24 @@ export default function Home() {
         loadTodos(userEmail)
       }
     }
-  }, [isValidEmail])
+  }, [])
+
+  // Theme management
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme')
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
+    
+    setIsDarkMode(shouldBeDark)
+    document.documentElement.classList.toggle('dark', shouldBeDark)
+  }, [])
+
+  const toggleTheme = () => {
+    const newDarkMode = !isDarkMode
+    setIsDarkMode(newDarkMode)
+    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light')
+    document.documentElement.classList.toggle('dark', newDarkMode)
+  }
 
   const loadTodos = async (email: string) => {
     try {
@@ -63,13 +82,17 @@ export default function Home() {
         .eq('user_email', email)
         .order('created_at', { ascending: false })
       
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error:', error)
+        throw error
+      }
       const todosData = data || []
       console.log('Todos loaded from Supabase:', todosData)
       setTodos(todosData)
     } catch (error) {
       console.error('Error loading todos:', error)
-      alert('Error al cargar las tareas. Revisa la consola.')
+      // No mostrar alert si es error de conexión inicial
+      setTodos([]) // Set empty array como fallback
     }
   }
 
@@ -200,133 +223,206 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            To-Do List App
-          </h1>
-          <p className="text-gray-300">
-            Usuario: 
-            <span className={`font-semibold ml-1 ${isValidEmail(userEmail) ? 'text-green-400' : 'text-red-400'}`}>
-              {userEmail}
-              {isValidEmail(userEmail) ? ' ✓' : ' ⚠️'}
-            </span>
-            <button 
-              onClick={changeUser}
-              className="ml-2 text-blue-400 hover:text-blue-300 text-sm underline"
-            >
-              cambiar
-            </button>
-          </p>
-        </div>
+          <div className="neu-card p-8">
+            <h1 className="text-4xl font-bold mb-4 text-display text-primary">
+              Tasks
+            </h1>
+            <div className="neu-card-inset p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-secondary">
+                    User: 
+                    <span className={`font-medium ml-1 ${isValidEmail(userEmail) ? 'text-green-500' : 'text-red-500'}`}>
+                      {userEmail}
+                      {isValidEmail(userEmail) ? ' ✓' : ' ⚠️'}
+                    </span>
+                    <button 
+                      onClick={changeUser}
+                      className="ml-2 neu-button px-3 py-1 text-sm"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      change
+                    </button>
+                  </p>
+                </div>
+                
+                <div className="flex gap-2">
+                  {/* N8N Settings Toggle */}
+                  <button
+                    onClick={() => setShowN8NCard(!showN8NCard)}
+                    className="neu-button p-2"
+                    title={showN8NCard ? 'Hide N8N settings' : 'Show N8N settings'}
+                  >
+                    <svg className="w-5 h-5" style={{ color: 'var(--foreground)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
 
-        {/* N8N Controls */}
-        <div className="mb-6 bg-slate-800 border border-slate-700 rounded-lg p-4">
-          <div className="flex flex-col gap-4">
-            {/* Mode Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-white font-medium">Modo N8N:</span>
-                <button
-                  onClick={() => setIsTestMode(!isTestMode)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    isTestMode 
-                      ? 'bg-yellow-600 text-white hover:bg-yellow-700' 
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-                >
-                  {isTestMode ? '🧪 Test Mode' : '🚀 Producción'}
-                </button>
+                  {/* Theme Toggle */}
+                  <button
+                    onClick={toggleTheme}
+                    className="neu-button p-2"
+                    title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                  >
+                    {isDarkMode ? (
+                      <svg className="w-5 h-5" style={{ color: 'var(--foreground)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" style={{ color: 'var(--foreground)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
-              
-              <button
-                onClick={() => setShowUrlInput(!showUrlInput)}
-                className="text-blue-400 hover:text-blue-300 text-sm underline"
-              >
-                {showUrlInput ? 'Ocultar URL' : 'URL Personalizada'}
-              </button>
             </div>
-
-            {/* Current URL Display */}
-            <div className="text-sm">
-              <span className="text-gray-400">URL Actual: </span>
-              <code className="text-green-400 bg-slate-700 px-2 py-1 rounded">
-                {getWebhookUrl()}
-              </code>
-            </div>
-
-            {/* Custom URL Input */}
-            {showUrlInput && (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={customUrl}
-                  onChange={(e) => setCustomUrl(e.target.value)}
-                  placeholder="https://tu-n8n.com/webhook/todo-webhook"
-                  className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={() => setCustomUrl('')}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Limpiar
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
+        {/* N8N Controls */}
+        {showN8NCard && (
+          <div className="mb-6 slide-down">
+            <div className="neu-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold card-title">N8N Configuration</h3>
+                <button
+                  onClick={() => setShowN8NCard(false)}
+                  className="neu-button p-2 text-gray-500 hover:text-red-500"
+                  title="Close N8N settings"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="flex flex-col gap-4">
+                {/* Mode Toggle */}
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-secondary">N8N Mode:</span>
+                    <button
+                      onClick={() => setIsTestMode(!isTestMode)}
+                      className={`neu-button px-4 py-2 font-medium ${
+                        isTestMode 
+                          ? 'text-yellow-600' 
+                          : 'text-green-600'
+                      }`}
+                    >
+                      {isTestMode ? 'Test Mode' : 'Production'}
+                    </button>
+                  </div>
+                  
+                  <button
+                    onClick={() => setShowUrlInput(!showUrlInput)}
+                    className="neu-button px-3 py-2 text-sm"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    {showUrlInput ? 'Hide URL' : 'Custom URL'}
+                  </button>
+                </div>
+
+                {/* Current URL Display */}
+                <div className="neu-card-inset p-3">
+                  <div className="text-sm">
+                    <span className="text-secondary">Current URL: </span>
+                    <code className="text-green-600 neu-card-inset px-2 py-1 text-xs font-mono break-all">
+                      {getWebhookUrl()}
+                    </code>
+                  </div>
+                </div>
+
+                {/* Custom URL Input */}
+                {showUrlInput && (
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      placeholder="https://your-n8n.com/webhook/todo-webhook"
+                      className="flex-1 neu-input px-4 py-3 text-sm text-primary"
+                    />
+                    <button
+                      onClick={() => setCustomUrl('')}
+                      className="neu-button px-4 py-3 text-red-500 hover:text-red-600"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
 
         {/* Add Todo Form */}
-        <form onSubmit={addTodo} className="mb-6">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newTodo}
-              onChange={(e) => setNewTodo(e.target.value)}
-              placeholder="¿Qué necesitas hacer? (Se mejorará con IA)"
-              className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              disabled={loading || !newTodo.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <PlusIcon className="w-5 h-5" />
-              {loading ? 'Procesando...' : `Crear con IA ${isTestMode ? '(Test)' : '(Prod)'}`}
-            </button>
+        <form onSubmit={addTodo} className="mb-8">
+          <div className="neu-card p-6">
+            <div className="flex gap-4 flex-col sm:flex-row">
+              <input
+                type="text"
+                value={newTodo}
+                onChange={(e) => setNewTodo(e.target.value)}
+                placeholder="What do you need to do? AI will enhance it"
+                className="flex-1 neu-input px-4 py-4 text-base"
+                style={{ color: 'var(--foreground)' }}
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                disabled={loading || !newTodo.trim()}
+                className={`neu-button px-6 py-4 font-medium flex items-center gap-2 justify-center min-w-[200px] ${
+                  loading || !newTodo.trim() ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                style={{ color: 'var(--primary)' }}
+              >
+                <PlusIcon className="w-5 h-5" />
+                {loading ? 'Processing...' : `Create with AI ${isTestMode ? '(Test)' : '(Prod)'}`}
+              </button>
+            </div>
           </div>
         </form>
 
         {/* Todo List */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {todos.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <p className="text-lg">No hay tareas aún</p>
-              <p className="text-sm">¡Agrega tu primera tarea con IA!</p>
+            <div className="neu-card p-12 text-center">
+              <div className="neu-pulse">
+                <div className="w-16 h-16 mx-auto mb-4 neu-card-inset rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 opacity-40" style={{ color: 'var(--foreground)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <p className="text-lg font-medium mb-2 text-primary">No tasks yet</p>
+                <p className="text-sm text-secondary">Create your first AI-enhanced task</p>
+              </div>
             </div>
           ) : (
             todos.map((todo) => (
               <div
                 key={todo.id}
-                className={`bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4 transition-all duration-200 hover:shadow-xl hover:border-slate-600 ${
-                  todo.completed ? 'opacity-75' : ''
+                className={`neu-card p-5 transition-all duration-300 hover:scale-[1.02] ${
+                  todo.completed ? 'opacity-70' : ''
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   {/* Complete Checkbox */}
                   <button
                     onClick={() => toggleComplete(todo.id, todo.completed)}
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    className={`w-8 h-8 rounded-full neu-button flex items-center justify-center transition-all duration-200 ${
                       todo.completed
-                        ? 'bg-green-500 border-green-500 text-white'
-                        : 'border-gray-300 hover:border-green-400'
+                        ? 'text-green-500'
+                        : 'hover:text-green-500'
                     }`}
                   >
-                    {todo.completed && <CheckIcon className="w-4 h-4" />}
+                    {todo.completed && <CheckIcon className="w-5 h-5" />}
                   </button>
 
                   {/* Todo Text */}
@@ -336,7 +432,7 @@ export default function Home() {
                         type="text"
                         value={editingText}
                         onChange={(e) => setEditingText(e.target.value)}
-                        className="w-full px-2 py-1 bg-slate-700 border border-slate-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full neu-input px-3 py-2 text-base text-primary"
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') saveEdit(todo.id)
                           if (e.key === 'Escape') cancelEdit()
@@ -344,16 +440,24 @@ export default function Home() {
                         autoFocus
                       />
                     ) : (
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-2">
                         <span
-                          className={`${
+                          className={`text-lg font-medium text-primary ${
                             todo.completed
-                              ? 'line-through text-gray-500'
-                              : 'text-white'
+                              ? 'line-through opacity-60'
+                              : ''
                           }`}
                         >
                           {todo.title}
                         </span>
+                        <div className="text-xs text-tertiary">
+                          {new Date(todo.created_at).toLocaleDateString('en-US', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -364,13 +468,13 @@ export default function Home() {
                       <>
                         <button
                           onClick={() => saveEdit(todo.id)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                          className="neu-button p-3 text-green-500 hover:text-green-600"
                         >
                           <CheckIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={cancelEdit}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          className="neu-button p-3 text-red-500 hover:text-red-600"
                         >
                           <XMarkIcon className="w-4 h-4" />
                         </button>
@@ -379,24 +483,20 @@ export default function Home() {
                       <>
                         <button
                           onClick={() => startEdit(todo.id, todo.title)}
-                          className="p-2 text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
+                          className="neu-button p-3 hover:text-blue-500"
+                          style={{ color: 'var(--primary)' }}
                         >
                           <PencilIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteTodo(todo.id)}
-                          className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                          className="neu-button p-3 text-red-400 hover:text-red-500"
                         >
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </>
                     )}
                   </div>
-                </div>
-
-                {/* Timestamp */}
-                <div className="mt-2 text-xs text-gray-500">
-                  Creada: {new Date(todo.created_at).toLocaleString('es-ES')}
                 </div>
               </div>
             ))
@@ -405,38 +505,48 @@ export default function Home() {
 
         {/* Stats */}
         {todos.length > 0 && (
-          <div className="mt-8 bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-white">{todos.length}</div>
-                <div className="text-sm text-gray-400">Total</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-green-400">
-                  {todos.filter(t => t.completed).length}
+          <div className="mt-8">
+            <div className="neu-card p-6">
+              <h3 className="text-lg font-semibold mb-4 text-center card-title">Statistics</h3>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="neu-card-inset p-4">
+                  <div className="text-3xl font-bold mb-2" style={{ color: 'var(--primary)' }}>{todos.length}</div>
+                  <div className="text-sm text-tertiary">Total</div>
                 </div>
-                <div className="text-sm text-gray-400">Completadas</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-blue-400">
-                  {todos.filter(t => !t.completed).length}
+                <div className="neu-card-inset p-4">
+                  <div className="text-3xl font-bold text-green-500 mb-2">
+                    {todos.filter(t => t.completed).length}
+                  </div>
+                  <div className="text-sm text-tertiary">Completed</div>
                 </div>
-                <div className="text-sm text-gray-400">Pendientes</div>
+                <div className="neu-card-inset p-4">
+                  <div className="text-3xl font-bold text-orange-500 mb-2">
+                    {todos.filter(t => !t.completed).length}
+                  </div>
+                  <div className="text-sm text-tertiary">Pending</div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* N8N Integration Info */}
-        <div className="mt-6 bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-4">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-white mb-2">🤖 Potenciado por IA</h3>
-            <p className="text-sm text-gray-400">
-              Tus tareas son procesadas por inteligencia artificial a través de N8N workflow
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              OpenAI + Telegram + Supabase Integration
-            </p>
+        <div className="mt-8">
+          <div className="neu-card p-6 text-center">
+            <div className="neu-card-inset p-4">
+              <div className="w-12 h-12 mx-auto mb-3 neu-card-inset rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6" style={{ color: 'var(--primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold mb-2 card-title">AI-Powered Tasks</h3>
+              <p className="text-sm text-secondary mb-2">
+                Your tasks are intelligently enhanced using AI workflows
+              </p>
+              <p className="text-xs text-tertiary">
+                OpenAI • Telegram • WhatsApp • Supabase • N8N
+              </p>
+            </div>
           </div>
         </div>
       </div>

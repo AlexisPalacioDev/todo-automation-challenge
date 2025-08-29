@@ -12,10 +12,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -176,
-        544
+        240,
+        48
       ],
-      "id": "66117cb7-ed34-4e9f-ab8e-4a3b01a4d402",
+      "id": "9bf81528-b3ed-48ef-891c-2a948ad808a9",
       "webhookId": "48e9624f-e0ef-4f8e-b9b2-5c5f7c558f66"
     },
     {
@@ -28,10 +28,10 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.2,
       "position": [
-        -176,
-        768
+        240,
+        272
       ],
-      "id": "6edfc863-85f4-437a-8dba-4e1ae9cb8071",
+      "id": "b1b44a56-b95a-4a9e-a394-31f843392e75",
       "name": "Telegram Trigger",
       "webhookId": "acea79b6-8a99-4520-9965-22db3ad999a7",
       "credentials": {
@@ -45,13 +45,13 @@
       "parameters": {
         "jsCode": "const http = $json ?? {};\nconst ai = $('Message a model').first().json?.message?.content ?? {};\nconst extract = $('Extract Todo').first().json ?? {};\n\nconst title   = ai.title ?? http?.todo?.title ?? http?.n8n_response?.title ?? 'Tarea';\nconst user    = http?.todo?.user_email ?? http?.n8n_response?.user ?? extract.user_email ?? 'desconocido';\nconst message = ai.message ?? `✅ To-do creada: ${title}`;\n\n// IDs para diferentes plataformas\nconst chat_id = extract.chat_id ?? null; // Telegram\nconst whatsapp_jid = extract.whatsapp_jid ?? null; // WhatsApp\n\nconst status = http?.n8n_response?.status ?? (http?.success ? 'created' : 'error');\n\nreturn [{\n  json: {\n    chat_id,\n    whatsapp_jid,\n    text: message,\n    response: message,\n    title,\n    user,\n    status\n  }\n}];\n"
       },
-      "id": "58b14bbb-32ef-4e0a-a38d-cddf51c127b4",
+      "id": "cea31ef8-a18e-4436-8e93-8ec39dd1f33c",
       "name": "Format Success Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        864,
-        480
+        1280,
+        -16
       ]
     },
     {
@@ -83,26 +83,26 @@
           }
         }
       },
-      "id": "6f69b029-9119-4f0f-b5eb-07cd45ac5f1d",
+      "id": "758de1d2-797c-4651-b5fc-dd226223e5cd",
       "name": "Create Todo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
-        640,
-        480
+        1056,
+        -16
       ]
     },
     {
       "parameters": {
         "jsCode": "// Code node (Run Once for Each Item)\n\n// Toma el primer item de entrada\nconst item = $input.first() ?? {};\nconst data = item.json ?? {};\n\n// Detectar origen y extraer texto + email\nlet text = '';\nlet userEmail = 'webapp@example.com';\nlet chatId;\nlet whatsappJid;\n\n// — Caso Web App (Webhook): el body viene anidado en json.body\nif (data.body?.message?.text) {\n  text = data.body.message.text || '';\n  userEmail = data.body.user_email || 'webapp@example.com';\n}\n// — Caso Telegram Trigger directo al Code node: message en la raíz\nelse if (data.message?.text) {\n  text = data.message.text || '';\n  userEmail = 'alexis26-93@live.com';\n  chatId = $input.first().json.message.chat.id;\n}\n// — Caso WhatsApp (EvolutionApi): diferentes tipos de mensajes\nelse if (data.body?.data?.message) {\n  // Mensaje simple\n  if (data.body.data.message.conversation) {\n    text = data.body.data.message.conversation;\n  }\n  // Mensaje extendido\n  else if (data.body.data.message.extendedTextMessage?.text) {\n    text = data.body.data.message.extendedTextMessage.text;\n  }\n  // Mensaje efímero (disappearing message)\n  else if (data.body.data.message.ephemeralMessage?.message?.extendedTextMessage?.text) {\n    text = data.body.data.message.ephemeralMessage.message.extendedTextMessage.text;\n  }\n  // Mensaje efímero simple\n  else if (data.body.data.message.ephemeralMessage?.message?.conversation) {\n    text = data.body.data.message.ephemeralMessage.message.conversation;\n  }\n  \n  if (text) {\n    userEmail = 'alexis26-93@live.com'; // Email fijo para WhatsApp\n    whatsappJid = data.body.data.key.remoteJid;\n  }\n}\n\n// Normalizar texto (quitar #to-do si viene)\nconst todoText = (text || '').replace('#to-do', '').trim();\n\nif (!todoText) {\n  return [\n    { json: { error: true, msg: 'Falta texto después de #to-do' } }\n  ];\n}\n\nreturn [\n  { json: { \n    title: todoText, \n    user_email: userEmail, \n    enhance: true,\n    ...(chatId != null ? { chat_id: chatId } : {}),\n    ...(whatsappJid != null ? { whatsapp_jid: whatsappJid } : {})\n  } }\n];\n"
       },
-      "id": "96ef3106-ae32-4a53-b735-f680319f1ff5",
+      "id": "ba735d50-2686-40fb-b21f-7a59fb2b0f97",
       "name": "Extract Todo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        64,
-        480
+        480,
+        -16
       ]
     },
     {
@@ -114,10 +114,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1280,
-        560
+        1696,
+        64
       ],
-      "id": "75bdadb1-7813-4b50-bed3-3e5e7096f9fd",
+      "id": "21ecd203-f691-4ff2-b08b-6f85f36775eb",
       "name": "Send a text message1",
       "webhookId": "720f2cca-7659-452d-9577-23d397455ccc",
       "alwaysOutputData": false,
@@ -140,7 +140,7 @@
         "messages": {
           "values": [
             {
-              "content": "You are an assistant that improves task titles for a to-do app.\n\nInstructions:\n1) ALWAYS respond with valid JSON and ONLY JSON.\n2) Detect the user's language and use that same language in \"title\" and \"message\".\n3) Return exactly these keys:\n   - \"title\": improved title, clear and concise (max 50 characters).\n   - \"message\": must start with the appropriate prefix based on language:\n     * For English: \"✅ To-do created: \" followed by the improved title\n     * For Spanish: \"✅ To-do creada: \" followed by the improved title\n     * For other languages: use equivalent translation\n\n4) Improvements you can make to the title:\n   - Fix spelling and grammar\n   - Make it more specific and actionable\n   - Use infinitive verbs (in the detected language)\n   - Maintain the original meaning\n\n5) Don't add anything outside the JSON. Don't include additional explanations.\n\nExamples:\nInput: \"wash car\" → {\"title\": \"Wash the car\", \"message\": \"✅ To-do created: Wash the car\"}\nInput: \"lavar carro\" → {\"title\": \"Lavar el carro\", \"message\": \"✅ To-do creada: Lavar el carro\"}\n",
+              "content": "Eres un asistente que mejora títulos de tareas para una app de to-dos.\n\nInstrucciones:\n1) Responde SIEMPRE con JSON válido y SOLO JSON.\n2) Detecta el idioma del usuario y usa ese mismo idioma en \"title\" y \"message\".\n3) Devuelve exactamente estas claves:\n   - \"title\": título mejorado, claro y conciso (máximo 50 caracteres).\n   - \"message\": debe empezar con \"✅ To-do creada: \" seguido del título mejorado.\n\n4) Mejoras que puedes hacer al título:\n   - Corregir ortografía y gramática\n   - Hacer más específico y accionable\n   - Usar verbos en infinitivo\n   - Mantener el significado original\n\n5) No agregues nada fuera del JSON. No incluyas explicaciones adicionales.\n",
               "role": "system"
             },
             {
@@ -154,10 +154,10 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        288,
-        480
+        704,
+        -16
       ],
-      "id": "9ad85d3d-86e6-483c-a7c1-326fc160960a",
+      "id": "6fedfa2e-c2f5-435b-8218-127f5767b08d",
       "name": "Message a model",
       "credentials": {
         "openAiApi": {
@@ -172,13 +172,13 @@
         "responseBody": "=  {\n    \"message\": \"{{ $json.response }}\",\n    \"status\": \"{{ $json.status }}\"\n  }",
         "options": {}
       },
-      "id": "e073d005-cf52-435a-a3cb-2aa97e6c8abc",
+      "id": "8379930f-b5c3-4899-9dbe-8ad0e61cee6e",
       "name": "Success Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1088,
-        480
+        1504,
+        -16
       ]
     },
     {
@@ -191,10 +191,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -176,
-        320
+        240,
+        -176
       ],
-      "id": "3a2b63e4-b268-48fd-b4b6-7154c0c9cacd",
+      "id": "93d01b0a-5dd2-4134-8151-22b44d9a59fd",
       "name": "EvolutionApi",
       "webhookId": "48535442-7028-4909-8468-d47d00a3aa58"
     },
@@ -209,10 +209,10 @@
       "type": "n8n-nodes-evolution-api.evolutionApi",
       "typeVersion": 1,
       "position": [
-        1280,
-        400
+        1696,
+        -96
       ],
-      "id": "2c4542e6-01ba-4411-8976-bea38047b550",
+      "id": "b00f6561-4e0b-4fb6-94df-beb947a2ac18",
       "name": "Enviar texto",
       "credentials": {
         "evolutionApi": {
@@ -390,7 +390,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "f8106f2d-0a30-477a-8ced-f8534f9ac2d7",
+  "versionId": "6e600265-8269-4fc5-ba64-c58545000f9d",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "d91aa16ea53d37fd73789f383cf9eaba769caba3a9692b8a422b4f8924d4d856"

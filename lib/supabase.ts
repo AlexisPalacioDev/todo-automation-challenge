@@ -12,7 +12,4 @@ export type Todo = {
   user_email: string
   created_at: string
   updated_at: string
-  category?: string
-  category_is_custom?: boolean
-  category_reason?: string
 }

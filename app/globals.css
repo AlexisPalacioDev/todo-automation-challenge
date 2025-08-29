@@ -40,11 +40,52 @@
   }
 }
 
+/* Dark mode override - when dark class is present */
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  
+  /* Neumorphism colors for dark mode */
+  --neu-bg-light: #0f172a;
+  --neu-bg-dark: #020617;
+  --neu-shadow-light: #1e293b;
+  --neu-shadow-dark: #020617;
+  --neu-border: rgba(255, 255, 255, 0.08);
+  
+  /* Text colors */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+}
+
+/* Light mode override - when NOT dark class */
+html:not(.dark) {
+  --background: #f8fafc;
+  --foreground: #1e293b;
+  
+  /* Neumorphism colors for light mode */
+  --neu-bg-light: #f8fafc;
+  --neu-bg-dark: #e2e8f0;
+  --neu-shadow-light: #ffffff;
+  --neu-shadow-dark: #cbd5e1;
+  --neu-border: rgba(255, 255, 255, 0.2);
+  
+  /* Text colors */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Neumorphism utility classes */
@@ -149,4 +190,78 @@ body {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 16px;
+}
+
+/* Slide down animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+    max-height: 0;
+  }
+}
+
+.slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+/* Typography utilities */
+.text-display {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.text-primary {
+  color: var(--text-primary, var(--foreground));
+}
+
+.text-secondary {
+  color: var(--text-secondary, var(--foreground));
+  opacity: 0.8;
+}
+
+.text-tertiary {
+  color: var(--text-tertiary, var(--foreground));
+  opacity: 0.6;
+}
+
+/* Enhanced button styles */
+.btn-primary {
+  background: linear-gradient(145deg, var(--primary), var(--primary-dark));
+  color: white;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Enhanced card titles */
+.card-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 600;
+  color: var(--text-primary, var(--foreground));
+  line-height: 1.3;
+  letter-spacing: -0.02em;
 }

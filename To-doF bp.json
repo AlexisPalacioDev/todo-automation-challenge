@@ -12,10 +12,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -176,
-        544
+        368,
+        144
       ],
-      "id": "66117cb7-ed34-4e9f-ab8e-4a3b01a4d402",
+      "id": "01035dd8-6cdd-4eae-bc12-9becea1abb3e",
       "webhookId": "48e9624f-e0ef-4f8e-b9b2-5c5f7c558f66"
     },
     {
@@ -28,10 +28,10 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.2,
       "position": [
-        -176,
-        768
+        368,
+        336
       ],
-      "id": "6edfc863-85f4-437a-8dba-4e1ae9cb8071",
+      "id": "49a34d99-efc1-45af-9170-e6dd36f00e9c",
       "name": "Telegram Trigger",
       "webhookId": "acea79b6-8a99-4520-9965-22db3ad999a7",
       "credentials": {
@@ -45,13 +45,13 @@
       "parameters": {
         "jsCode": "const http = $json ?? {};\nconst ai = $('Message a model').first().json?.message?.content ?? {};\nconst extract = $('Extract Todo').first().json ?? {};\n\nconst title   = ai.title ?? http?.todo?.title ?? http?.n8n_response?.title ?? 'Tarea';\nconst user    = http?.todo?.user_email ?? http?.n8n_response?.user ?? extract.user_email ?? 'desconocido';\nconst message = ai.message ?? `✅ To-do creada: ${title}`;\n\n// IDs para diferentes plataformas\nconst chat_id = extract.chat_id ?? null; // Telegram\nconst whatsapp_jid = extract.whatsapp_jid ?? null; // WhatsApp\n\nconst status = http?.n8n_response?.status ?? (http?.success ? 'created' : 'error');\n\nreturn [{\n  json: {\n    chat_id,\n    whatsapp_jid,\n    text: message,\n    response: message,\n    title,\n    user,\n    status\n  }\n}];\n"
       },
-      "id": "58b14bbb-32ef-4e0a-a38d-cddf51c127b4",
+      "id": "7cfa9a27-618c-47a9-8844-1f2c05f4ad2b",
       "name": "Format Success Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        864,
-        480
+        1616,
+        0
       ]
     },
     {
@@ -83,41 +83,42 @@
           }
         }
       },
-      "id": "6f69b029-9119-4f0f-b5eb-07cd45ac5f1d",
+      "id": "69e9b155-902c-4536-a47a-7c0938efdec7",
       "name": "Create Todo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
-        640,
-        480
+        1392,
+        0
       ]
     },
     {
       "parameters": {
         "jsCode": "// Code node (Run Once for Each Item)\n\n// Toma el primer item de entrada\nconst item = $input.first() ?? {};\nconst data = item.json ?? {};\n\n// Detectar origen y extraer texto + email\nlet text = '';\nlet userEmail = 'webapp@example.com';\nlet chatId;\nlet whatsappJid;\n\n// — Caso Web App (Webhook): el body viene anidado en json.body\nif (data.body?.message?.text) {\n  text = data.body.message.text || '';\n  userEmail = data.body.user_email || 'webapp@example.com';\n}\n// — Caso Telegram Trigger directo al Code node: message en la raíz\nelse if (data.message?.text) {\n  text = data.message.text || '';\n  userEmail = 'alexis26-93@live.com';\n  chatId = $input.first().json.message.chat.id;\n}\n// — Caso WhatsApp (EvolutionApi): diferentes tipos de mensajes\nelse if (data.body?.data?.message) {\n  // Mensaje simple\n  if (data.body.data.message.conversation) {\n    text = data.body.data.message.conversation;\n  }\n  // Mensaje extendido\n  else if (data.body.data.message.extendedTextMessage?.text) {\n    text = data.body.data.message.extendedTextMessage.text;\n  }\n  // Mensaje efímero (disappearing message)\n  else if (data.body.data.message.ephemeralMessage?.message?.extendedTextMessage?.text) {\n    text = data.body.data.message.ephemeralMessage.message.extendedTextMessage.text;\n  }\n  // Mensaje efímero simple\n  else if (data.body.data.message.ephemeralMessage?.message?.conversation) {\n    text = data.body.data.message.ephemeralMessage.message.conversation;\n  }\n  \n  if (text) {\n    userEmail = 'alexis26-93@live.com'; // Email fijo para WhatsApp\n    whatsappJid = data.body.data.key.remoteJid;\n  }\n}\n\n// Normalizar texto (quitar #to-do si viene)\nconst todoText = (text || '').replace('#to-do', '').trim();\n\nif (!todoText) {\n  return [\n    { json: { error: true, msg: 'Falta texto después de #to-do' } }\n  ];\n}\n\nreturn [\n  { json: { \n    title: todoText, \n    user_email: userEmail, \n    enhance: true,\n    ...(chatId != null ? { chat_id: chatId } : {}),\n    ...(whatsappJid != null ? { whatsapp_jid: whatsappJid } : {})\n  } }\n];\n"
       },
-      "id": "96ef3106-ae32-4a53-b735-f680319f1ff5",
+      "id": "3425b615-5ea3-4ba4-88ec-a43aa6161e56",
       "name": "Extract Todo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        64,
-        480
+        592,
+        144
       ]
     },
     {
       "parameters": {
-        "chatId": "={{ $json.chat_id || null }}",
+        "chatId": "={{ $json.chat_id }}",
         "text": "={{ $json.response }}",
         "additionalFields": {}
       },
+      "executeOnce": false,
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1280,
-        560
+        2288,
+        48
       ],
-      "id": "75bdadb1-7813-4b50-bed3-3e5e7096f9fd",
+      "id": "68023f96-6f64-4b26-9642-f2b542e42503",
       "name": "Send a text message1",
       "webhookId": "720f2cca-7659-452d-9577-23d397455ccc",
       "alwaysOutputData": false,
@@ -127,6 +128,7 @@
           "name": "Bencio"
         }
       },
+      "continueOnFail": true,
       "onError": "continueRegularOutput"
     },
     {
@@ -140,7 +142,7 @@
         "messages": {
           "values": [
             {
-              "content": "You are an assistant that improves task titles for a to-do app.\n\nInstructions:\n1) ALWAYS respond with valid JSON and ONLY JSON.\n2) Detect the user's language and use that same language in \"title\" and \"message\".\n3) Return exactly these keys:\n   - \"title\": improved title, clear and concise (max 50 characters).\n   - \"message\": must start with the appropriate prefix based on language:\n     * For English: \"✅ To-do created: \" followed by the improved title\n     * For Spanish: \"✅ To-do creada: \" followed by the improved title\n     * For other languages: use equivalent translation\n\n4) Improvements you can make to the title:\n   - Fix spelling and grammar\n   - Make it more specific and actionable\n   - Use infinitive verbs (in the detected language)\n   - Maintain the original meaning\n\n5) Don't add anything outside the JSON. Don't include additional explanations.\n\nExamples:\nInput: \"wash car\" → {\"title\": \"Wash the car\", \"message\": \"✅ To-do created: Wash the car\"}\nInput: \"lavar carro\" → {\"title\": \"Lavar el carro\", \"message\": \"✅ To-do creada: Lavar el carro\"}\n",
+              "content": "=Eres un clasificador. Intents válidos:\n- smalltalk: saludo, charla casual, preguntas personales (“ya comiste?”, “cómo vas?”).\n- todo_create: crear tarea. Debe haber al menos un título identificable.\n- todo_query: listar/consultar tareas.\n- other: todo lo demás.\n\nResponde SOLO JSON:\n{\n  \"intent\": \"<smalltalk|todo_create|todo_query|other>\",\n  \"confidence\": 0-1,\n  \"entities\": { \"title\": \"<string|null>\", \"datetime\": \"<string|null>\" },\n  \"needs_clarification\": <true|false>,\n  \"missing\": [\"title\" | \"datetime\" ...]\n}\n\nReglas:\n- Si el mensaje es genérico tipo “quiero agendar una tarea” y no hay título claro, intent= \"todo_create\", needs_clarification=true, missing=[\"title\"].\n- Frases de conversación (“ya comiste?”, “buenas”, “gracias”) → intent=\"smalltalk\".\n- No inventes entidades.\n",
               "role": "system"
             },
             {
@@ -154,10 +156,10 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        288,
-        480
+        816,
+        144
       ],
-      "id": "9ad85d3d-86e6-483c-a7c1-326fc160960a",
+      "id": "4450ad89-db95-443f-b7fb-06d81c771e80",
       "name": "Message a model",
       "credentials": {
         "openAiApi": {
@@ -172,13 +174,13 @@
         "responseBody": "=  {\n    \"message\": \"{{ $json.response }}\",\n    \"status\": \"{{ $json.status }}\"\n  }",
         "options": {}
       },
-      "id": "e073d005-cf52-435a-a3cb-2aa97e6c8abc",
+      "id": "77ea066d-ddcc-4d9e-a809-52dd06e1fbcd",
       "name": "Success Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1088,
-        480
+        1840,
+        0
       ]
     },
     {
@@ -191,10 +193,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -176,
-        320
+        368,
+        -48
       ],
-      "id": "3a2b63e4-b268-48fd-b4b6-7154c0c9cacd",
+      "id": "8271da32-b268-4d34-a962-8c8276cec9d5",
       "name": "EvolutionApi",
       "webhookId": "48535442-7028-4909-8468-d47d00a3aa58"
     },
@@ -206,20 +208,96 @@
         "messageText": "={{ $json.response }}",
         "options_message": {}
       },
+      "executeOnce": false,
       "type": "n8n-nodes-evolution-api.evolutionApi",
       "typeVersion": 1,
       "position": [
-        1280,
-        400
+        2288,
+        240
       ],
-      "id": "2c4542e6-01ba-4411-8976-bea38047b550",
+      "id": "0d9c90ce-8be0-404d-8aba-65e15c840974",
       "name": "Enviar texto",
       "credentials": {
         "evolutionApi": {
           "id": "335dJI3aHJ7lLGvE",
           "name": "Evolution account"
         }
-      }
+      },
+      "continueOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.message.content.is_task }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "fa6aa3d1-33bb-474c-91e1-8061d3ffa349",
+      "name": "Is Task?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ai = $('Message a model').first().json?.message?.content ?? {};\nconst extract = $('Extract Todo').first().json ?? {};\n\nconst message = ai.message || 'No veo una tarea específica. ¿Qué tarea te gustaría que agregue?';\n\n// IDs para diferentes plataformas\nconst chat_id = extract.chat_id ?? null; // Telegram\nconst whatsapp_jid = extract.whatsapp_jid ?? null; // WhatsApp\n\nreturn [{\n  json: {\n    chat_id,\n    whatsapp_jid,\n    text: message,\n    response: message,\n    is_task: false\n  }\n}];\n"
+      },
+      "id": "af4d0f8e-d316-4d4c-ad2c-f55c962cae12",
+      "name": "Format Non-Task Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.chat_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "a5f5ebb2-2304-4870-89b1-4749c289ef78",
+      "name": "Is Telegram?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.whatsapp_jid }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "7c950428-d3db-4d82-9a59-8b27f91c5fd4",
+      "name": "Is WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        240
+      ]
     }
   ],
   "pinData": {
@@ -351,7 +429,41 @@
       "main": [
         [
           {
+            "node": "Is Task?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Task?": {
+      "main": [
+        [
+          {
             "node": "Create Todo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Non-Task Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Non-Task Response": {
+      "main": [
+        [
+          {
+            "node": "Is Telegram?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is WhatsApp?",
             "type": "main",
             "index": 0
           }
@@ -362,10 +474,32 @@
       "main": [
         [
           {
-            "node": "Send a text message1",
+            "node": "Is Telegram?",
             "type": "main",
             "index": 0
           },
+          {
+            "node": "Is WhatsApp?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Telegram?": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is WhatsApp?": {
+      "main": [
+        [
           {
             "node": "Enviar texto",
             "type": "main",
@@ -390,7 +524,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "f8106f2d-0a30-477a-8ced-f8534f9ac2d7",
+  "versionId": "35c8f773-1340-40ef-b2fe-b8b7da078a7e",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "d91aa16ea53d37fd73789f383cf9eaba769caba3a9692b8a422b4f8924d4d856"
