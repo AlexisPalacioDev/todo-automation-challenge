@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { supabase, Todo } from '@/lib/supabase'
-import { PlusIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline'
 import TaskCard from '@/components/TaskCard'
+import Tutorial from '@/components/Tutorial'
+import UserSetup from '@/components/UserSetup'
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([])
@@ -20,6 +22,69 @@ export default function Home() {
   const [swipedTodos, setSwipedTodos] = useState<{[key: string]: number}>({}) // Store swipe positions
   const [deletingTodos, setDeletingTodos] = useState<Set<number>>(new Set()) // Track deleting todos
   const [isDragging, setIsDragging] = useState<number | null>(null) // Track mouse dragging
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false)
+  const [showUserSetup, setShowUserSetup] = useState(false)
+  const [userSetupMode, setUserSetupMode] = useState<'first-time' | 'change-user'>('first-time')
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [tutorialStep, setTutorialStep] = useState(0)
+  const [typingAnimation, setTypingAnimation] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+
+  // Generate demo tasks based on tutorial step
+  const getDemoTasks = () => {
+    if (tutorialStep === 1) { // Create Smart Tasks step
+      return [
+        {
+          id: -1,
+          title: "🔄 AI Enhanced: Buy groceries - milk, bread, eggs, organize by store layout, check weekly meal plan",
+          completed: false,
+          created_at: new Date().toISOString(),
+          user_email: 'demo'
+        },
+        {
+          id: -2,
+          title: "💡 Original: buy groceries",
+          completed: true,
+          created_at: new Date(Date.now() - 1000).toISOString(),
+          user_email: 'demo'
+        }
+      ]
+    } else if (tutorialStep === 2 || tutorialStep === 3) { // Swipe gestures steps
+      return [
+        {
+          id: -1,
+          title: "Try swiping right to complete this task! →",
+          completed: false,
+          created_at: new Date().toISOString(),
+          user_email: 'demo'
+        },
+        {
+          id: -2,
+          title: "← Try swiping left to delete this task",
+          completed: false,
+          created_at: new Date().toISOString(),
+          user_email: 'demo'
+        }
+      ]
+    } else { // Default
+      return [
+        {
+          id: -1,
+          title: "Welcome to TaskForge AI! Your smart task companion 🚀",
+          completed: false,
+          created_at: new Date().toISOString(),
+          user_email: 'demo'
+        }
+      ]
+    }
+  }
+
+  const demoTasks = getDemoTasks()
+  
+  // Debug logging for tutorial
+  if (showTutorial) {
+    console.log('Tutorial Step:', tutorialStep, 'Demo Tasks:', demoTasks)
+  }
 
   // Validar email con expresión regular
   const isValidEmail = (email: string) => {
@@ -38,34 +103,69 @@ export default function Home() {
   }
 
 
-  // Load todos on component mount
+  // Typing animation effect for tutorial
+  useEffect(() => {
+    if (showTutorial && tutorialStep === 1) {
+      // Start typing animation for "Create Smart Tasks" step
+      const textToType = "buy eggs"
+      let currentIndex = 0
+      setTypingAnimation('')
+      setIsTyping(true)
+      
+      const startTyping = () => {
+        const typingInterval = setInterval(() => {
+          if (currentIndex <= textToType.length) {
+            setTypingAnimation(textToType.slice(0, currentIndex))
+            currentIndex++
+          } else {
+            clearInterval(typingInterval)
+            // After finishing typing, pause and then clear
+            setTimeout(() => {
+              setTypingAnimation('')
+              currentIndex = 0
+              // Restart the animation after a pause
+              setTimeout(() => {
+                startTyping() // Recursive call to restart animation
+              }, 1000)
+            }, 2500)
+          }
+        }, 300) // Slower typing for better visibility
+      }
+      
+      startTyping()
+      
+      // Cleanup function
+      return () => {
+        setTypingAnimation('')
+        setIsTyping(false)
+      }
+    } else {
+      setTypingAnimation('')
+      setIsTyping(false)
+    }
+  }, [showTutorial, tutorialStep])
   useEffect(() => {
     const email = localStorage.getItem('userEmail')
+    const hasSeenTutorial = localStorage.getItem('hasSeenTutorial')
+    
     if (email && isValidEmail(email)) {
       setUserEmail(email)
       loadTodos(email)
+      // Check if user has seen tutorial
+      if (!hasSeenTutorial) {
+        setIsFirstTimeUser(true)
+      }
     } else {
-      // Si no hay email o es inválido, pedirlo
-      let userEmail = prompt('Por favor ingresa tu email para usar la app:')
-      
-      // Validar el email ingresado
-      while (userEmail && !isValidEmail(userEmail)) {
-        userEmail = prompt('Email inválido. Por favor ingresa un email válido (ejemplo: usuario@dominio.com):')
-      }
-      
-      if (userEmail) {
-        setUserEmail(userEmail)
-        localStorage.setItem('userEmail', userEmail)
-        loadTodos(userEmail)
-      }
+      // Show user setup form instead of prompt
+      setUserSetupMode('first-time')
+      setShowUserSetup(true)
     }
   }, [])
 
-  // Theme management
+  // Theme management - Default to light mode
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
+    const shouldBeDark = savedTheme === 'dark'
     
     setIsDarkMode(shouldBeDark)
     document.documentElement.classList.toggle('dark', shouldBeDark)
@@ -423,26 +523,50 @@ export default function Home() {
   }
 
   const changeUser = () => {
-    localStorage.removeItem('userEmail')
-    let newEmail = prompt('Ingresa tu nuevo email:')
-    
-    // Validar el nuevo email
-    while (newEmail && !isValidEmail(newEmail)) {
-      newEmail = prompt('Email inválido. Por favor ingresa un email válido (ejemplo: usuario@dominio.com):')
+    setUserSetupMode('change-user')
+    setShowUserSetup(true)
+  }
+
+  const handleTutorialComplete = () => {
+    localStorage.setItem('hasSeenTutorial', 'true')
+    setIsFirstTimeUser(false)
+    setShowTutorial(false)
+  }
+
+  const startTutorial = () => {
+    setShowTutorial(true)
+    setIsFirstTimeUser(true)
+  }
+
+  const handleUserSetup = (email: string) => {
+    if (userSetupMode === 'change-user') {
+      localStorage.removeItem('userEmail')
     }
     
-    if (newEmail) {
-      setUserEmail(newEmail)
-      localStorage.setItem('userEmail', newEmail)
-      loadTodos(newEmail)
+    setUserEmail(email)
+    localStorage.setItem('userEmail', email)
+    loadTodos(email)
+    setShowUserSetup(false)
+    
+    // If first time user, show tutorial
+    if (userSetupMode === 'first-time') {
+      setShowTutorial(true)
+      setIsFirstTimeUser(true)
     }
+  }
+
+  const handleUserSetupCancel = () => {
+    if (userSetupMode === 'change-user') {
+      setShowUserSetup(false)
+    }
+    // For first-time users, we don't allow cancel
   }
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--background)' }}>
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div id="header" className="text-center mb-8">
           <div className="neu-card p-8">
             <h1 className="text-4xl font-bold mb-2 text-display text-primary">
               TaskForge AI
@@ -465,6 +589,7 @@ export default function Home() {
                 <div className="flex gap-2">
                   {/* N8N Settings Toggle */}
                   <button
+                    id="settings-button"
                     onClick={() => setShowN8NCard(!showN8NCard)}
                     className="neu-button p-2"
                     title={showN8NCard ? 'Hide N8N settings' : 'Show N8N settings'}
@@ -597,15 +722,53 @@ export default function Home() {
         {/* Add Todo Form */}
         <form onSubmit={addTodo} className="mb-8">
           <div className="neu-card p-6">
+            {/* Tutorial Demo Box for Create Smart Tasks */}
+            {showTutorial && tutorialStep === 1 && (
+              <div className="mb-4 neu-card-inset p-4 rounded-lg">
+                <div className="text-center mb-3">
+                  <h4 className="text-sm font-semibold text-primary mb-1">
+                    🤖 AI Enhancement Demo
+                  </h4>
+                  <p className="text-xs text-secondary">
+                    Watch how AI transforms simple tasks into detailed, actionable items
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="neu-card-inset p-3 rounded">
+                    <div className="text-xs text-tertiary mb-1">Before (Your Input):</div>
+                    <div className="text-primary font-mono">"buy eggs"</div>
+                  </div>
+                  <div className="neu-card-inset p-3 rounded">
+                    <div className="text-xs text-tertiary mb-1">After (AI Enhanced):</div>
+                    <div className="text-primary text-xs leading-relaxed">
+                      "🥚 Buy eggs - organic free-range, check expiration dates, 
+                      compare prices, add to weekly meal planning list"
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="flex gap-4 flex-col sm:flex-row">
               <input
+                id="task-input"
                 type="text"
-                value={newTodo}
-                onChange={(e) => setNewTodo(e.target.value)}
-                placeholder="What needs to be done? AI will enhance it ✨"
-                className="flex-1 neu-input px-4 py-4 text-base"
+                value={showTutorial && tutorialStep === 1 ? typingAnimation : newTodo}
+                onChange={(e) => {
+                  if (!showTutorial || tutorialStep !== 1) {
+                    setNewTodo(e.target.value)
+                  }
+                }}
+                placeholder={showTutorial && tutorialStep === 1 ? "Watch AI enhance your tasks..." : "What needs to be done? AI will enhance it ✨"}
+                className={`flex-1 neu-input px-4 py-4 text-base ${
+                  showTutorial && tutorialStep === 1 
+                    ? 'typing-demo tutorial-demo-highlight' + (isTyping ? ' typing-cursor' : '') 
+                    : ''
+                }`}
                 style={{ color: 'var(--foreground)' }}
-                disabled={loading}
+                disabled={loading || (showTutorial && tutorialStep === 1)}
+                readOnly={showTutorial && tutorialStep === 1}
               />
               <button
                 type="submit"
@@ -623,17 +786,8 @@ export default function Home() {
         </form>
 
         {/* Todo List */}
-        {todos.length > 0 && (
-          <div className="text-center mb-4">
-            <div className="neu-card-inset p-3">
-              <p className="text-xs text-tertiary">
-                💡 <strong>Slide right</strong> 👉 <span className="text-green-500">Complete</span> • <strong>Slide left</strong> 👈 <span className="text-red-500">Delete</span>
-              </p>
-            </div>
-          </div>
-        )}
-        <div className="space-y-4">
-          {todos.length === 0 ? (
+        <div id="task-list" className="space-y-4">
+          {(showTutorial ? demoTasks : todos).length === 0 ? (
             <div className="neu-card p-12 text-center">
               <div className="neu-pulse">
                 <div className="w-16 h-16 mx-auto mb-4 neu-card-inset rounded-full flex items-center justify-center">
@@ -646,13 +800,13 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            todos.map((todo) => (
+            (showTutorial ? demoTasks : todos).map((todo) => (
               <TaskCard
                 key={todo.id}
                 todo={todo}
-                onToggleComplete={toggleComplete}
-                onEdit={saveEdit}
-                onDelete={deleteTodo}
+                onToggleComplete={showTutorial ? () => {} : toggleComplete}
+                onEdit={showTutorial ? () => {} : saveEdit}
+                onDelete={showTutorial ? () => {} : deleteTodo}
                 editingId={editingId}
                 editingText={editingText}
                 setEditingId={setEditingId}
@@ -672,24 +826,26 @@ export default function Home() {
         </div>
 
         {/* Stats */}
-        {todos.length > 0 && (
-          <div className="mt-8">
+        {(showTutorial || todos.length > 0) && (
+          <div id="stats-section" className="mt-8">
             <div className="neu-card p-6">
               <h3 className="text-lg font-semibold mb-4 text-center card-title">Statistics</h3>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="neu-card-inset p-4">
-                  <div className="text-3xl font-bold mb-2" style={{ color: 'var(--primary)' }}>{todos.length}</div>
+                  <div className="text-3xl font-bold mb-2" style={{ color: 'var(--primary)' }}>
+                    {showTutorial ? 2 : todos.length}
+                  </div>
                   <div className="text-sm text-tertiary">Total</div>
                 </div>
                 <div className="neu-card-inset p-4">
                   <div className="text-3xl font-bold text-green-500 mb-2">
-                    {todos.filter(t => t.completed).length}
+                    {showTutorial ? 0 : todos.filter(t => t.completed).length}
                   </div>
                   <div className="text-sm text-tertiary">Completed</div>
                 </div>
                 <div className="neu-card-inset p-4">
                   <div className="text-3xl font-bold text-orange-500 mb-2">
-                    {todos.filter(t => !t.completed).length}
+                    {showTutorial ? 2 : todos.filter(t => !t.completed).length}
                   </div>
                   <div className="text-sm text-tertiary">Pending</div>
                 </div>
@@ -718,6 +874,38 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Tutorial Help Button */}
+      {!showTutorial && !showUserSetup && userEmail && (
+        <div className="fixed bottom-6 right-6 z-30">
+          <button
+            onClick={startTutorial}
+            className="neu-button p-4 rounded-full shadow-lg hover:scale-110 transition-all duration-200 tutorial-button-float"
+            style={{ background: 'linear-gradient(145deg, var(--primary), var(--primary-dark))' }}
+            title="Show tutorial"
+          >
+            <QuestionMarkCircleIcon className="w-6 h-6 text-white" />
+          </button>
+        </div>
+      )}
+
+      {/* Tutorial Component */}
+      {showTutorial && (
+        <Tutorial 
+          isFirstTime={isFirstTimeUser}
+          onComplete={handleTutorialComplete}
+          onStepChange={setTutorialStep}
+        />
+      )}
+
+      {/* User Setup Component */}
+      {showUserSetup && (
+        <UserSetup
+          isFirstTime={userSetupMode === 'first-time'}
+          onEmailSubmit={handleUserSetup}
+          onCancel={userSetupMode === 'change-user' ? handleUserSetupCancel : undefined}
+        />
+      )}
     </div>
   )
 }
