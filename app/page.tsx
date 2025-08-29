@@ -39,6 +39,7 @@ export default function Home() {
           title: "🔄 AI Enhanced: Buy groceries - milk, bread, eggs, organize by store layout, check weekly meal plan",
           completed: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           user_email: 'demo'
         },
         {
@@ -46,6 +47,7 @@ export default function Home() {
           title: "💡 Original: buy groceries",
           completed: true,
           created_at: new Date(Date.now() - 1000).toISOString(),
+          updated_at: new Date(Date.now() - 1000).toISOString(),
           user_email: 'demo'
         }
       ]
@@ -56,6 +58,7 @@ export default function Home() {
           title: "Try swiping right to complete this task! →",
           completed: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           user_email: 'demo'
         },
         {
@@ -63,6 +66,7 @@ export default function Home() {
           title: "← Try swiping left to delete this task",
           completed: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           user_email: 'demo'
         }
       ]
@@ -73,6 +77,7 @@ export default function Home() {
           title: "Welcome to TaskForge AI! Your smart task companion 🚀",
           completed: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           user_email: 'demo'
         }
       ]
