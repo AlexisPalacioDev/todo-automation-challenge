@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { supabase, Todo } from '@/lib/supabase'
-import { PlusIcon, TrashIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { PlusIcon } from '@heroicons/react/24/outline'
+import TaskCard from '@/components/TaskCard'
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([])
@@ -177,36 +178,24 @@ export default function Home() {
     }
   }
 
-  const startEdit = (id: number, title: string) => {
-    setEditingId(id)
-    setEditingText(title)
-  }
-
-  const saveEdit = async (id: number) => {
-    if (!editingText.trim()) return
+  const saveEdit = async (id: number, title: string) => {
+    if (!title.trim()) return
 
     try {
       const { error } = await supabase
         .from('todos')
-        .update({ title: editingText.trim() })
+        .update({ title: title.trim() })
         .eq('id', id)
 
       if (error) throw error
 
       setTodos(todos.map(todo => 
-        todo.id === id ? { ...todo, title: editingText.trim() } : todo
+        todo.id === id ? { ...todo, title: title.trim() } : todo
       ))
-      setEditingId(null)
-      setEditingText('')
     } catch (error) {
       console.error('Error updating todo:', error)
       alert('Error al actualizar la tarea')
     }
-  }
-
-  const cancelEdit = () => {
-    setEditingId(null)
-    setEditingText('')
   }
 
   // Swipe to delete functionality
@@ -225,11 +214,30 @@ export default function Home() {
     if (startX === undefined) return
 
     const deltaX = touch.clientX - startX
-    const swipeThreshold = -120 // Maximum swipe distance
+    const leftSwipeThreshold = -120 // Maximum left swipe distance
+    const rightSwipeThreshold = 120 // Maximum right swipe distance
 
-    // Only allow left swipe (negative deltaX)
+    // Haptic feedback at key thresholds
+    const previousDelta = swipedTodos[todoId] || 0
+    if ((Math.abs(deltaX) > 40 && Math.abs(previousDelta) <= 40) ||
+        (Math.abs(deltaX) > 70 && Math.abs(previousDelta) <= 70)) {
+      // Trigger haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50) // Short vibration
+      }
+    }
+
+    // Allow both left and right swipe
     if (deltaX < 0) {
-      const clampedDelta = Math.max(deltaX, swipeThreshold)
+      // Left swipe for delete
+      const clampedDelta = Math.max(deltaX, leftSwipeThreshold)
+      setSwipedTodos(prev => ({
+        ...prev,
+        [todoId]: clampedDelta
+      }))
+    } else if (deltaX > 0) {
+      // Right swipe for complete
+      const clampedDelta = Math.min(deltaX, rightSwipeThreshold)
       setSwipedTodos(prev => ({
         ...prev,
         [todoId]: clampedDelta
@@ -239,11 +247,15 @@ export default function Home() {
 
   const handleTouchEnd = (e: React.TouchEvent, todoId: number) => {
     const deltaX = swipedTodos[todoId] || 0
-    const swipeThreshold = -80 // Threshold to trigger delete
+    const deleteThreshold = -80 // Threshold to trigger delete
+    const completeThreshold = 80 // Threshold to trigger complete
 
-    if (deltaX < swipeThreshold) {
+    if (deltaX < deleteThreshold) {
       // Trigger delete with animation
       handleSwipeDelete(todoId)
+    } else if (deltaX > completeThreshold) {
+      // Trigger complete/uncomplete
+      handleSwipeComplete(todoId)
     } else {
       // Reset position with smooth transition
       setSwipedTodos(prev => {
@@ -255,9 +267,62 @@ export default function Home() {
     }
   }
 
+  const handleSwipeComplete = async (id: number) => {
+    const todo = todos.find(t => t.id === id)
+    if (!todo) return
+
+    // Success haptic feedback
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]) // Success pattern
+    }
+
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ completed: !todo.completed })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTodos(todos.map(t => 
+        t.id === id ? { ...t, completed: !t.completed } : t
+      ))
+
+      // Reset swipe position with a slight delay for visual feedback
+      setTimeout(() => {
+        setSwipedTodos(prev => {
+          const newState = { ...prev }
+          delete newState[id]
+          delete newState[`${id}_startX`]
+          return newState
+        })
+      }, 200)
+
+    } catch (error) {
+      console.error('Error updating todo:', error)
+      // Error haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 200]) // Error pattern
+      }
+      alert('Error al actualizar la tarea')
+      // Reset swipe position on error
+      setSwipedTodos(prev => {
+        const newState = { ...prev }
+        delete newState[id]
+        delete newState[`${id}_startX`]
+        return newState
+      })
+    }
+  }
+
   const handleSwipeDelete = async (id: number) => {
     // Add to deleting set for animation
     setDeletingTodos(prev => new Set([...prev, id]))
+    
+    // Delete haptic feedback
+    if (navigator.vibrate) {
+      navigator.vibrate([150, 50, 150]) // Delete pattern
+    }
     
     try {
       const { error } = await supabase
@@ -275,6 +340,10 @@ export default function Home() {
       
     } catch (error) {
       console.error('Error deleting todo:', error)
+      // Error haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 200]) // Error pattern
+      }
       alert('Error al eliminar la tarea')
     } finally {
       // Clean up state regardless of success/failure
@@ -310,10 +379,20 @@ export default function Home() {
     if (startX === undefined) return
 
     const deltaX = e.clientX - startX
-    const swipeThreshold = -120
+    const leftSwipeThreshold = -120
+    const rightSwipeThreshold = 120
 
+    // Allow both left and right drag
     if (deltaX < 0) {
-      const clampedDelta = Math.max(deltaX, swipeThreshold)
+      // Left drag for delete
+      const clampedDelta = Math.max(deltaX, leftSwipeThreshold)
+      setSwipedTodos(prev => ({
+        ...prev,
+        [todoId]: clampedDelta
+      }))
+    } else if (deltaX > 0) {
+      // Right drag for complete
+      const clampedDelta = Math.min(deltaX, rightSwipeThreshold)
       setSwipedTodos(prev => ({
         ...prev,
         [todoId]: clampedDelta
@@ -326,10 +405,13 @@ export default function Home() {
     
     setIsDragging(null)
     const deltaX = swipedTodos[todoId] || 0
-    const swipeThreshold = -80
+    const deleteThreshold = -80
+    const completeThreshold = 80
 
-    if (deltaX < swipeThreshold) {
+    if (deltaX < deleteThreshold) {
       handleSwipeDelete(todoId)
+    } else if (deltaX > completeThreshold) {
+      handleSwipeComplete(todoId)
     } else {
       setSwipedTodos(prev => {
         const newState = { ...prev }
@@ -362,9 +444,12 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="neu-card p-8">
-            <h1 className="text-4xl font-bold mb-4 text-display text-primary">
-              Tasks
+            <h1 className="text-4xl font-bold mb-2 text-display text-primary">
+              TaskForge AI
             </h1>
+            <p className="text-sm text-secondary mb-4 opacity-80">
+              Forge smarter tasks with artificial intelligence
+            </p>
             <div className="neu-card-inset p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -517,7 +602,7 @@ export default function Home() {
                 type="text"
                 value={newTodo}
                 onChange={(e) => setNewTodo(e.target.value)}
-                placeholder="What do you need to do? AI will enhance it"
+                placeholder="What needs to be done? AI will enhance it ✨"
                 className="flex-1 neu-input px-4 py-4 text-base"
                 style={{ color: 'var(--foreground)' }}
                 disabled={loading}
@@ -531,7 +616,7 @@ export default function Home() {
                 style={{ color: 'var(--primary)' }}
               >
                 <PlusIcon className="w-5 h-5" />
-                {loading ? 'Processing...' : `Create with AI ${isTestMode ? '(Test)' : '(Prod)'}`}
+                {loading ? 'Forging...' : `Forge with AI ${isTestMode ? '(Test)' : '(Live)'}`}
               </button>
             </div>
           </div>
@@ -542,7 +627,7 @@ export default function Home() {
           <div className="text-center mb-4">
             <div className="neu-card-inset p-3">
               <p className="text-xs text-tertiary">
-                💡 Tip: Slide left or drag left to delete tasks
+                💡 <strong>Slide right</strong> 👉 <span className="text-green-500">Complete</span> • <strong>Slide left</strong> 👈 <span className="text-red-500">Delete</span>
               </p>
             </div>
           </div>
@@ -556,148 +641,33 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 </div>
-                <p className="text-lg font-medium mb-2 text-primary">No tasks yet</p>
+                <p className="text-lg font-medium mb-2 text-primary">No tasks forged yet</p>
                 <p className="text-sm text-secondary">Create your first AI-enhanced task</p>
               </div>
             </div>
           ) : (
-            todos.map((todo) => {
-              const swipePosition = swipedTodos[todo.id] || 0
-              const isDeleting = deletingTodos.has(todo.id)
-              
-              return (
-                <div
-                  key={todo.id}
-                  className={`relative overflow-hidden transition-all duration-300 ${
-                    isDeleting ? 'animate-pulse opacity-0 scale-95' : 'hover:scale-[1.02]'
-                  }`}
-                >
-                  {/* Delete indicator background */}
-                  <div className={`absolute inset-0 bg-gradient-to-l from-red-500 to-red-400 flex items-center justify-end pr-8 transition-all duration-200 rounded-2xl ${
-                    swipePosition < -20 ? 'opacity-100' : 'opacity-0'
-                  } ${swipePosition < -60 ? 'swipe-delete-indicator' : ''}`}>
-                    <TrashIcon className={`w-6 h-6 text-white transition-all duration-200 ${
-                      swipePosition < -60 ? 'w-8 h-8' : 'w-6 h-6'
-                    }`} />
-                    <span className={`text-white font-medium ml-2 transition-all duration-200 ${
-                      swipePosition < -60 ? 'text-lg' : 'text-base'
-                    }`}>
-                      {swipePosition < -60 ? 'Release to Delete' : 'Delete'}
-                    </span>
-                  </div>
-                  
-                  {/* Main todo content */}
-                  <div
-                    className={`neu-card p-5 transition-all duration-200 cursor-grab active:cursor-grabbing ${
-                      todo.completed ? 'opacity-70' : ''
-                    } ${isDeleting ? 'todo-deleting' : ''} ${
-                      swipePosition < -40 ? 'haptic-feedback' : ''
-                    }`}
-                    style={{
-                      transform: `translateX(${swipePosition}px)`,
-                      transition: swipePosition === 0 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-                      boxShadow: swipePosition < -20 ? 
-                        '0 10px 25px rgba(239, 68, 68, 0.2), 0 4px 10px rgba(0, 0, 0, 0.1)' : 
-                        undefined
-                    }}
-                    onTouchStart={(e) => handleTouchStart(e, todo.id)}
-                    onTouchMove={(e) => handleTouchMove(e, todo.id)}
-                    onTouchEnd={(e) => handleTouchEnd(e, todo.id)}
-                    onMouseDown={(e) => handleMouseDown(e, todo.id)}
-                    onMouseMove={(e) => handleMouseMove(e, todo.id)}
-                    onMouseUp={(e) => handleMouseUp(e, todo.id)}
-                    onMouseLeave={(e) => handleMouseUp(e, todo.id)}
-                  >
-                <div className="flex items-center gap-4">
-                  {/* Complete Checkbox */}
-                  <button
-                    onClick={() => toggleComplete(todo.id, todo.completed)}
-                    className={`w-8 h-8 rounded-full neu-button flex items-center justify-center transition-all duration-200 ${
-                      todo.completed
-                        ? 'text-green-500'
-                        : 'hover:text-green-500'
-                    }`}
-                  >
-                    {todo.completed && <CheckIcon className="w-5 h-5" />}
-                  </button>
-
-                  {/* Todo Text */}
-                  <div className="flex-1">
-                    {editingId === todo.id ? (
-                      <input
-                        type="text"
-                        value={editingText}
-                        onChange={(e) => setEditingText(e.target.value)}
-                        className="w-full neu-input px-3 py-2 text-base text-primary"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') saveEdit(todo.id)
-                          if (e.key === 'Escape') cancelEdit()
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <span
-                          className={`text-lg font-medium text-primary ${
-                            todo.completed
-                              ? 'line-through opacity-60'
-                              : ''
-                          }`}
-                        >
-                          {todo.title}
-                        </span>
-                        <div className="text-xs text-tertiary">
-                          {new Date(todo.created_at).toLocaleDateString('en-US', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    {editingId === todo.id ? (
-                      <>
-                        <button
-                          onClick={() => saveEdit(todo.id)}
-                          className="neu-button p-3 text-green-500 hover:text-green-600"
-                        >
-                          <CheckIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="neu-button p-3 text-red-500 hover:text-red-600"
-                        >
-                          <XMarkIcon className="w-4 h-4" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => startEdit(todo.id, todo.title)}
-                          className="neu-button p-3 hover:text-blue-500"
-                          style={{ color: 'var(--primary)' }}
-                        >
-                          <PencilIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteTodo(todo.id)}
-                          className="neu-button p-3 text-red-400 hover:text-red-500"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                  </div>
-                </div>
-              )
-            })
+            todos.map((todo) => (
+              <TaskCard
+                key={todo.id}
+                todo={todo}
+                onToggleComplete={toggleComplete}
+                onEdit={saveEdit}
+                onDelete={deleteTodo}
+                editingId={editingId}
+                editingText={editingText}
+                setEditingId={setEditingId}
+                setEditingText={setEditingText}
+                swipePosition={swipedTodos[todo.id] || 0}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                isDeleting={deletingTodos.has(todo.id)}
+              />
+            ))
           )}
         </div>
 
@@ -737,7 +707,7 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold mb-2 card-title">AI-Powered Tasks</h3>
+              <h3 className="text-lg font-semibold mb-2 card-title">TaskForge Intelligence</h3>
               <p className="text-sm text-secondary mb-2">
                 Your tasks are intelligently enhanced using AI workflows
               </p>
