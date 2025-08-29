@@ -11,11 +11,14 @@ export default function Home() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingText, setEditingText] = useState('')
   const [loading, setLoading] = useState(false)
-  const [isTestMode, setIsTestMode] = useState(true)
+  const [isTestMode, setIsTestMode] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [showN8NCard, setShowN8NCard] = useState(false)
+  const [swipedTodos, setSwipedTodos] = useState<{[key: number]: number}>({}) // Store swipe positions
+  const [deletingTodos, setDeletingTodos] = useState<Set<number>>(new Set()) // Track deleting todos
+  const [isDragging, setIsDragging] = useState<number | null>(null) // Track mouse dragging
 
   // Validar email con expresión regular
   const isValidEmail = (email: string) => {
@@ -206,6 +209,137 @@ export default function Home() {
     setEditingText('')
   }
 
+  // Swipe to delete functionality
+  const handleTouchStart = (e: React.TouchEvent, todoId: number) => {
+    const touch = e.touches[0]
+    setSwipedTodos(prev => ({
+      ...prev,
+      [`${todoId}_startX`]: touch.clientX,
+      [todoId]: 0
+    }))
+  }
+
+  const handleTouchMove = (e: React.TouchEvent, todoId: number) => {
+    const touch = e.touches[0]
+    const startX = swipedTodos[`${todoId}_startX`]
+    if (startX === undefined) return
+
+    const deltaX = touch.clientX - startX
+    const swipeThreshold = -120 // Maximum swipe distance
+
+    // Only allow left swipe (negative deltaX)
+    if (deltaX < 0) {
+      const clampedDelta = Math.max(deltaX, swipeThreshold)
+      setSwipedTodos(prev => ({
+        ...prev,
+        [todoId]: clampedDelta
+      }))
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent, todoId: number) => {
+    const deltaX = swipedTodos[todoId] || 0
+    const swipeThreshold = -80 // Threshold to trigger delete
+
+    if (deltaX < swipeThreshold) {
+      // Trigger delete with animation
+      handleSwipeDelete(todoId)
+    } else {
+      // Reset position with smooth transition
+      setSwipedTodos(prev => {
+        const newState = { ...prev }
+        delete newState[todoId]
+        delete newState[`${todoId}_startX`]
+        return newState
+      })
+    }
+  }
+
+  const handleSwipeDelete = async (id: number) => {
+    // Add to deleting set for animation
+    setDeletingTodos(prev => new Set([...prev, id]))
+    
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      // Wait for delete animation to complete
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // Remove from todos list
+      setTodos(prev => prev.filter(todo => todo.id !== id))
+      
+    } catch (error) {
+      console.error('Error deleting todo:', error)
+      alert('Error al eliminar la tarea')
+    } finally {
+      // Clean up state regardless of success/failure
+      setSwipedTodos(prev => {
+        const newState = { ...prev }
+        delete newState[id]
+        delete newState[`${id}_startX`]
+        return newState
+      })
+      setDeletingTodos(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(id)
+        return newSet
+      })
+    }
+  }
+
+  // Mouse drag support for desktop
+  const handleMouseDown = (e: React.MouseEvent, todoId: number) => {
+    e.preventDefault()
+    setIsDragging(todoId)
+    setSwipedTodos(prev => ({
+      ...prev,
+      [`${todoId}_startX`]: e.clientX,
+      [todoId]: 0
+    }))
+  }
+
+  const handleMouseMove = (e: React.MouseEvent, todoId: number) => {
+    if (isDragging !== todoId) return
+    
+    const startX = swipedTodos[`${todoId}_startX`]
+    if (startX === undefined) return
+
+    const deltaX = e.clientX - startX
+    const swipeThreshold = -120
+
+    if (deltaX < 0) {
+      const clampedDelta = Math.max(deltaX, swipeThreshold)
+      setSwipedTodos(prev => ({
+        ...prev,
+        [todoId]: clampedDelta
+      }))
+    }
+  }
+
+  const handleMouseUp = (e: React.MouseEvent, todoId: number) => {
+    if (isDragging !== todoId) return
+    
+    setIsDragging(null)
+    const deltaX = swipedTodos[todoId] || 0
+    const swipeThreshold = -80
+
+    if (deltaX < swipeThreshold) {
+      handleSwipeDelete(todoId)
+    } else {
+      setSwipedTodos(prev => {
+        const newState = { ...prev }
+        delete newState[todoId]
+        delete newState[`${todoId}_startX`]
+        return newState
+      })
+    }
+  }
+
   const changeUser = () => {
     localStorage.removeItem('userEmail')
     let newEmail = prompt('Ingresa tu nuevo email:')
@@ -391,6 +525,15 @@ export default function Home() {
         </form>
 
         {/* Todo List */}
+        {todos.length > 0 && (
+          <div className="text-center mb-4">
+            <div className="neu-card-inset p-3">
+              <p className="text-xs text-tertiary">
+                💡 Tip: Slide left or drag left to delete tasks
+              </p>
+            </div>
+          </div>
+        )}
         <div className="space-y-4">
           {todos.length === 0 ? (
             <div className="neu-card p-12 text-center">
@@ -405,13 +548,53 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            todos.map((todo) => (
-              <div
-                key={todo.id}
-                className={`neu-card p-5 transition-all duration-300 hover:scale-[1.02] ${
-                  todo.completed ? 'opacity-70' : ''
-                }`}
-              >
+            todos.map((todo) => {
+              const swipePosition = swipedTodos[todo.id] || 0
+              const isDeleting = deletingTodos.has(todo.id)
+              
+              return (
+                <div
+                  key={todo.id}
+                  className={`relative overflow-hidden transition-all duration-300 ${
+                    isDeleting ? 'animate-pulse opacity-0 scale-95' : 'hover:scale-[1.02]'
+                  }`}
+                >
+                  {/* Delete indicator background */}
+                  <div className={`absolute inset-0 bg-gradient-to-l from-red-500 to-red-400 flex items-center justify-end pr-8 transition-all duration-200 rounded-2xl ${
+                    swipePosition < -20 ? 'opacity-100' : 'opacity-0'
+                  } ${swipePosition < -60 ? 'swipe-delete-indicator' : ''}`}>
+                    <TrashIcon className={`w-6 h-6 text-white transition-all duration-200 ${
+                      swipePosition < -60 ? 'w-8 h-8' : 'w-6 h-6'
+                    }`} />
+                    <span className={`text-white font-medium ml-2 transition-all duration-200 ${
+                      swipePosition < -60 ? 'text-lg' : 'text-base'
+                    }`}>
+                      {swipePosition < -60 ? 'Release to Delete' : 'Delete'}
+                    </span>
+                  </div>
+                  
+                  {/* Main todo content */}
+                  <div
+                    className={`neu-card p-5 transition-all duration-200 cursor-grab active:cursor-grabbing ${
+                      todo.completed ? 'opacity-70' : ''
+                    } ${isDeleting ? 'todo-deleting' : ''} ${
+                      swipePosition < -40 ? 'haptic-feedback' : ''
+                    }`}
+                    style={{
+                      transform: `translateX(${swipePosition}px)`,
+                      transition: swipePosition === 0 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                      boxShadow: swipePosition < -20 ? 
+                        '0 10px 25px rgba(239, 68, 68, 0.2), 0 4px 10px rgba(0, 0, 0, 0.1)' : 
+                        undefined
+                    }}
+                    onTouchStart={(e) => handleTouchStart(e, todo.id)}
+                    onTouchMove={(e) => handleTouchMove(e, todo.id)}
+                    onTouchEnd={(e) => handleTouchEnd(e, todo.id)}
+                    onMouseDown={(e) => handleMouseDown(e, todo.id)}
+                    onMouseMove={(e) => handleMouseMove(e, todo.id)}
+                    onMouseUp={(e) => handleMouseUp(e, todo.id)}
+                    onMouseLeave={(e) => handleMouseUp(e, todo.id)}
+                  >
                 <div className="flex items-center gap-4">
                   {/* Complete Checkbox */}
                   <button
@@ -498,8 +681,10 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-              </div>
-            ))
+                  </div>
+                </div>
+              )
+            })
           )}
         </div>
 

@@ -10,7 +10,9 @@
 - 📱 **Multi-canal**: Web App, Telegram y WhatsApp
 - 🔄 **Automatización**: N8N workflow para procesamiento inteligente
 - 💾 **Base de datos**: Supabase para almacenamiento confiable
-- 🎨 **UI Moderna**: Next.js con Tailwind CSS
+- 🎨 **UI Moderna**: Diseño neumórfico moderno con Tailwind CSS 4
+- 🌙 **Tema Personalizable**: Modo oscuro/claro automático y manual
+- ⚙️ **Configuración N8N**: Panel de configuración integrado para webhooks
 
 ---
 
@@ -41,8 +43,8 @@ graph TD
 
 | Componente | Tecnología | Propósito |
 |------------|------------|-----------|
-| **Frontend** | Next.js 15 + React + TypeScript | Interfaz web moderna y responsiva |
-| **UI/UX** | Tailwind CSS + Headless UI | Diseño consistente y profesional |
+| **Frontend** | Next.js 15.5.2 + React 19 + TypeScript | Interfaz web moderna y responsiva |
+| **UI/UX** | Tailwind CSS 4 + Neumorfismo | Diseño moderno con efectos neumórficos |
 | **Base de Datos** | Supabase (PostgreSQL) | Almacenamiento de tareas y usuarios |
 | **IA** | OpenAI GPT-4 Mini | Mejora automática de títulos |
 | **Automatización** | N8N Self-hosted (AWS VPS) | Workflow de procesamiento |
@@ -193,12 +195,33 @@ graph LR
 
 ### Prerrequisitos
 
-- Node.js 18+
+- Node.js 20+ (recomendado)
 - AWS VPS para N8N y EvolutionAPI
-- Supabase account
+- Cuenta de Supabase
 - OpenAI API key
 - Telegram Bot Token
 - EvolutionAPI configurado
+
+### Dependencias Principales
+
+```json
+{
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@supabase/ssr": "^0.7.0", 
+    "@supabase/supabase-js": "^2.56.0",
+    "next": "15.5.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "eslint": "^9"
+  }
+}
+```
 
 ### 1. **Configurar Aplicación Web**
 
@@ -222,12 +245,15 @@ NEXTAUTH_URL=http://localhost:3000
 ```
 
 ```bash
-# Ejecutar en desarrollo
+# Ejecutar en desarrollo (con Turbopack)
 npm run dev
 
-# Build para producción
+# Build para producción (con Turbopack)
 npm run build
 npm start
+
+# Linting
+npm run lint
 ```
 
 ### 2. **Configurar Supabase**
@@ -328,14 +354,61 @@ EasyPanel proporciona una interfaz web intuitiva para gestionar EvolutionAPI en 
 
 ---
 
+## 🎨 Sistema de Diseño Neumórfico
+
+### Características del Diseño
+
+La aplicación implementa un sistema de diseño **neumórfico** (neumorphism) que combina:
+
+- **Sombras Suaves**: Efectos de luz y sombra que simulan elementos físicos
+- **Colores Naturales**: Paleta de colores suaves y neutrales
+- **Interactividad Tactil**: Botones que responden con efectos visuales al hover
+- **Adaptabilidad**: Funciona perfectamente en modo claro y oscuro
+
+### Componentes Principales
+
+#### Cards Neumórficas (`neu-card`)
+- Contenedores principales con sombras externas
+- Bordes suaves y padding generoso
+- Animaciones sutiles en hover
+
+#### Controles Neumórficos (`neu-button`, `neu-input`)
+- Botones con efecto de presión visual
+- Inputs con sombras internas (inset)
+- Transiciones suaves para mejor UX
+
+#### Modo Oscuro Inteligente
+```javascript
+// Detección automática del tema del sistema
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+// Almacenamiento de preferencia del usuario
+localStorage.setItem('theme', newDarkMode ? 'dark' : 'light')
+```
+
+### Variables CSS Personalizadas
+```css
+:root {
+  --background: /* Color de fondo principal */
+  --foreground: /* Color de texto principal */
+  --primary: /* Color primario para elementos importantes */
+  --secondary: /* Color secundario para texto */
+  --tertiary: /* Color terciario para elementos sutiles */
+}
+```
+
+---
+
 ## 📱 Guía de Uso
 
 ### 💻 Aplicación Web
 
 1. **Acceder**: Ir a `https://todo-automation-challenge.vercel.app`
 2. **Configurar Email**: Ingresar email válido cuando se solicite
-3. **Crear Tareas**: Escribir tarea en el campo de texto y hacer clic en "Crear con IA"
-4. **Gestionar**: Marcar como completadas, editar o eliminar tareas
+3. **Personalizar Tema**: Usar el botón de luna/sol para alternar entre modo claro/oscuro
+4. **Configurar N8N** (Opcional): Usar el botón de engranaje para configurar webhooks personalizados
+5. **Crear Tareas**: Escribir tarea en el campo de texto y hacer clic en "Crear con IA"
+6. **Gestionar**: Marcar como completadas, editar o eliminar tareas
+7. **Ver Estadísticas**: Revisar el panel de estadísticas en la parte inferior
 
 ### 📱 Telegram
 
@@ -484,14 +557,22 @@ ORDER BY date DESC;
 
 ## 🔄 Versionado y Updates
 
-### Versión Actual: v1.0.0
+### Versión Actual: v0.1.0
+
+### Características Recientes (v0.1.0)
+- [x] Diseño neumórfico moderno y elegante
+- [x] Modo oscuro/claro con detección automática del sistema
+- [x] Panel de configuración N8N integrado
+- [x] Validación de email con regex
+- [x] Estadísticas de tareas en tiempo real
+- [x] Upgrade a Next.js 15.5.2 y React 19
 
 ### Próximas Características
 - [ ] Categorización automática de tareas
 - [ ] Recordatorios programados
 - [ ] Colaboración entre usuarios
 - [ ] Integración con Google Calendar
-- [ ] Dashboard de analytics
+- [ ] Dashboard de analytics avanzados
 
 ### Proceso de Update
 1. **Backup** de base de datos
@@ -506,15 +587,24 @@ ORDER BY date DESC;
 ### Estructura del Proyecto
 ```
 todo-automation-challenge/
-├── app/                    # Next.js App Router
-│   ├── api/               # API Routes
-│   ├── globals.css        # Estilos globales
-│   └── page.tsx          # Página principal
-├── lib/                   # Utilidades
-│   └── supabase.ts       # Cliente Supabase
-├── public/               # Assets estáticos
-├── To-doF.json          # N8N Workflow
-└── DOCUMENTACION.md     # Este archivo
+├── app/                           # Next.js 15 App Router
+│   ├── api/                      # API Routes
+│   │   ├── enhance-title/        # Endpoint de mejora con IA
+│   │   ├── n8n/add-todo/        # Endpoint para N8N
+│   │   └── todos/               # CRUD de tareas
+│   ├── globals.css              # Estilos globales + Neumorphism
+│   ├── layout.tsx               # Layout principal
+│   ├── page.tsx                 # Página principal con UI moderna
+│   └── favicon.ico              # Favicon
+├── lib/                         # Utilidades
+│   └── supabase.ts             # Cliente Supabase
+├── public/                      # Assets estáticos
+│   └── *.svg                   # Iconos SVG
+├── To-doF.json                 # N8N Workflow principal
+├── debug-n8n.md               # Documentación de debug
+├── API.md                      # Documentación de API
+├── DOCUMENTACION.md            # Este archivo
+└── package.json                # Dependencias actualizadas
 ```
 
 ### Guidelines
@@ -546,6 +636,9 @@ R: Sí, OpenAI detecta automáticamente el idioma del usuario.
 **P: ¿Es escalable para muchos usuarios?**
 R: Sí, usando Supabase y Vercel puede manejar miles de usuarios.
 
+**P: ¿Puedo configurar un webhook personalizado de N8N?**
+R: Sí, usa el botón de configuración (engranaje) en la aplicación web para configurar URLs personalizadas.
+
 **P: ¿Puedo self-hostear todo?**
 R: Sí, todas las tecnologías usadas tienen opciones self-hosted.
 
@@ -557,5 +650,5 @@ MIT License - Ver archivo LICENSE para más detalles.
 
 ---
 
-*Documentación actualizada: Enero 2025*
-*Versión del proyecto: 1.0.0*
+*Documentación actualizada: Agosto 2025*
+*Versión del proyecto: 0.1.0*
