@@ -16,7 +16,7 @@ export default function Home() {
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [showN8NCard, setShowN8NCard] = useState(false)
-  const [swipedTodos, setSwipedTodos] = useState<{[key: number]: number}>({}) // Store swipe positions
+  const [swipedTodos, setSwipedTodos] = useState<{[key: string]: number}>({}) // Store swipe positions
   const [deletingTodos, setDeletingTodos] = useState<Set<number>>(new Set()) // Track deleting todos
   const [isDragging, setIsDragging] = useState<number | null>(null) // Track mouse dragging
 
@@ -374,13 +374,6 @@ export default function Home() {
                       {userEmail}
                       {isValidEmail(userEmail) ? ' ✓' : ' ⚠️'}
                     </span>
-                    <button 
-                      onClick={changeUser}
-                      className="ml-2 neu-button px-3 py-1 text-sm"
-                      style={{ color: 'var(--primary)' }}
-                    >
-                      change
-                    </button>
                   </p>
                 </div>
                 
@@ -437,6 +430,26 @@ export default function Home() {
               </div>
               
               <div className="flex flex-col gap-4">
+                {/* User Configuration */}
+                <div className="neu-card-inset p-3">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="text-sm">
+                      <span className="text-secondary">Current User: </span>
+                      <span className={`font-medium ml-1 ${isValidEmail(userEmail) ? 'text-green-500' : 'text-red-500'}`}>
+                        {userEmail}
+                        {isValidEmail(userEmail) ? ' ✓' : ' ⚠️'}
+                      </span>
+                    </div>
+                    <button 
+                      onClick={changeUser}
+                      className="neu-button px-3 py-2 text-sm"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      Change User
+                    </button>
+                  </div>
+                </div>
+
                 {/* Mode Toggle */}
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-3">
