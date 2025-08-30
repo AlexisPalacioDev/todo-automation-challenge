@@ -729,7 +729,7 @@ export default function Home() {
           <div className="neu-card p-6">
             {/* Tutorial Demo Box for Create Smart Tasks */}
             {showTutorial && tutorialStep === 1 && (
-              <div className="mb-4 neu-card-inset p-4 rounded-lg">
+              <div className="mb-4 neu-card-inset p-4 rounded-lg tutorial-demo-box">
                 <div className="text-center mb-3">
                   <h4 className="text-sm font-semibold text-primary mb-1">
                     🤖 AI Enhancement Demo

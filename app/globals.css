@@ -675,9 +675,49 @@ html:not(.dark) .neu-input:focus {
 /* Ensure tooltip positioning doesn't conflict with other fixed elements */
 .tutorial-tooltip {
   position: fixed;
-  max-width: min(90vw, 384px);
+  max-width: min(95vw, 384px);
   isolation: isolate;
   contain: layout style;
+}
+
+/* Mobile-specific tutorial improvements */
+@media (max-width: 768px) {
+  .tutorial-tooltip {
+    max-width: calc(100vw - 32px);
+    font-size: 0.875rem;
+  }
+  
+  .tutorial-tooltip h4 {
+    font-size: 0.875rem !important;
+  }
+  
+  .tutorial-tooltip p {
+    font-size: 0.75rem !important;
+    line-height: 1.4;
+  }
+  
+  /* Ensure demo box doesn't interfere on mobile */
+  .tutorial-demo-box {
+    margin-bottom: 1rem;
+  }
+  
+  /* Adjust tutorial highlight for mobile */
+  .tutorial-highlight {
+    animation: pulse-tutorial-mobile 2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse-tutorial-mobile {
+  0%, 100% {
+    box-shadow: 
+      0 0 0 0 rgba(102, 126, 234, 0.2),
+      0 0 15px rgba(102, 126, 234, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 0 4px rgba(102, 126, 234, 0.1),
+      0 0 20px rgba(102, 126, 234, 0.15);
+  }
 }
 
 .tutorial-button-float {

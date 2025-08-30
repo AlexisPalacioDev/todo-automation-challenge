@@ -160,66 +160,124 @@ export default function Tutorial({ isFirstTime, onComplete, onStepChange }: Tuto
     let left = 0
     const viewportHeight = window.innerHeight
     const viewportWidth = window.innerWidth
+    const isMobile = viewportWidth < 768
     
     if (targetElement) {
       const targetRect = targetElement.getBoundingClientRect()
       const targetCenterX = targetRect.left + (targetRect.width / 2)
       const targetCenterY = targetRect.top + (targetRect.height / 2)
       
-      // Improved positioning logic with overflow protection
-      switch (currentStepData.position) {
-        case 'bottom':
-          top = targetRect.bottom + window.scrollY + 20
-          left = targetCenterX + window.scrollX - (tooltipRect.width / 2)
-          
-          // If tooltip goes below viewport, position it above instead
-          if (targetRect.bottom + tooltipRect.height + 40 > viewportHeight) {
+      // Special mobile-first positioning logic
+      if (isMobile) {
+        // For mobile, always position tooltips at safe locations
+        switch (currentStepData.target) {
+          case 'task-input':
+            // For Create Smart Tasks step, position above the demo box
+            if (currentStepData.id === 2) {
+              top = 120 + window.scrollY // Above the demo box
+              left = 16 // Left aligned with margin
+            } else {
+              top = targetRect.bottom + window.scrollY + 30
+              left = 16
+            }
+            break
+          case 'task-list':
+            // Position above task list on mobile
             top = targetRect.top + window.scrollY - tooltipRect.height - 20
-          }
-          break
-          
-        case 'top':
-          top = targetRect.top + window.scrollY - tooltipRect.height - 20
-          left = targetCenterX + window.scrollX - (tooltipRect.width / 2)
-          
-          // If tooltip goes above viewport, position it below instead
-          if (top - window.scrollY < 80) {
+            left = 16
+            break
+          case 'stats-section':
+            // Always position above stats on mobile
+            top = targetRect.top + window.scrollY - tooltipRect.height - 20
+            left = 16
+            break
+          case 'settings-button':
+            top = 120 + window.scrollY
+            left = 16
+            break
+          case 'header':
             top = targetRect.bottom + window.scrollY + 20
-          }
-          break
-          
-        case 'left':
-          top = targetCenterY + window.scrollY - (tooltipRect.height / 2)
-          left = targetRect.left + window.scrollX - tooltipRect.width - 20
-          
-          // If tooltip goes off left edge, position it on right instead
-          if (left < 24) {
-            left = targetRect.right + window.scrollX + 20
-          }
-          break
-          
-        case 'right':
-          top = targetCenterY + window.scrollY - (tooltipRect.height / 2)
-          left = targetRect.right + window.scrollX + 20
-          
-          // If tooltip goes off right edge, position it on left instead
-          if (left + tooltipRect.width > viewportWidth - 24) {
-            left = targetRect.left + window.scrollX - tooltipRect.width - 20
-          }
-          break
-      }
-      
-      // Special handling for problematic targets
-      if (currentStepData.target === 'stats-section') {
-        // Force stats tutorial to be positioned higher to avoid overlap
-        const idealTop = targetRect.top + window.scrollY - tooltipRect.height - 30
-        const minAllowedTop = 100 + window.scrollY
-        top = Math.max(idealTop, minAllowedTop)
+            left = 16
+            break
+          default:
+            top = targetRect.bottom + window.scrollY + 20
+            left = 16
+        }
+      } else {
+        // Desktop positioning logic
+        switch (currentStepData.position) {
+          case 'bottom':
+            top = targetRect.bottom + window.scrollY + 24
+            left = targetCenterX + window.scrollX - (tooltipRect.width / 2)
+            
+            // Special handling for Create Smart Tasks to avoid demo box overlap
+            if (currentStepData.id === 2) {
+              top = targetRect.bottom + window.scrollY + 200 // Below the demo box
+            }
+            
+            // If tooltip goes below viewport, position it above instead
+            if (top + tooltipRect.height > viewportHeight + window.scrollY - 40) {
+              top = targetRect.top + window.scrollY - tooltipRect.height - 24
+            }
+            break
+            
+          case 'top':
+            top = targetRect.top + window.scrollY - tooltipRect.height - 24
+            left = targetCenterX + window.scrollX - (tooltipRect.width / 2)
+            
+            // If tooltip goes above viewport, position it below instead
+            if (top < 100 + window.scrollY) {
+              top = targetRect.bottom + window.scrollY + 24
+            }
+            break
+            
+          case 'left':
+            top = targetCenterY + window.scrollY - (tooltipRect.height / 2)
+            left = targetRect.left + window.scrollX - tooltipRect.width - 24
+            
+            // If tooltip goes off left edge, position it on right instead
+            if (left < 24) {
+              left = targetRect.right + window.scrollX + 24
+            }
+            break
+            
+          case 'right':
+            top = targetCenterY + window.scrollY - (tooltipRect.height / 2)
+            left = targetRect.right + window.scrollX + 24
+            
+            // If tooltip goes off right edge, position it on left instead
+            if (left + tooltipRect.width > viewportWidth - 24) {
+              left = targetRect.left + window.scrollX - tooltipRect.width - 24
+            }
+            break
+        }
         
-        // If still not enough room, position to the side
-        if (top > targetRect.top + window.scrollY - 50) {
-          top = targetCenterY + window.scrollY - (tooltipRect.height / 2)
-          left = viewportWidth - tooltipRect.width - 30
+        // Special handling for specific targets on desktop
+        if (currentStepData.target === 'stats-section') {
+          const idealTop = targetRect.top + window.scrollY - tooltipRect.height - 40
+          const minAllowedTop = 120 + window.scrollY
+          top = Math.max(idealTop, minAllowedTop)
+          
+          // If still not enough room, position to the side
+          if (top > targetRect.top + window.scrollY - 60) {
+            top = targetCenterY + window.scrollY - (tooltipRect.height / 2)
+            left = Math.min(viewportWidth - tooltipRect.width - 40, viewportWidth - 400)
+          }
+        }
+        
+        // Special handling for task-list to ensure visibility
+        if (currentStepData.target === 'task-list') {
+          if (currentStepData.position === 'bottom') {
+            // Position below task list but ensure it's visible
+            top = targetRect.bottom + window.scrollY + 30
+            left = targetCenterX + window.scrollX - (tooltipRect.width / 2)
+          }
+        }
+        
+        // Special handling for header
+        if (currentStepData.target === 'header' && currentStepData.position === 'bottom') {
+          top = targetRect.bottom + window.scrollY + 30
+          left = targetCenterX + window.scrollX - (tooltipRect.width / 2)
         }
       }
       
@@ -227,32 +285,45 @@ export default function Tutorial({ isFirstTime, onComplete, onStepChange }: Tuto
       // Enhanced fallback positioning
       console.warn(`Using fallback positioning for step: ${currentStepData.title}`)
       
-      switch (currentStepData.target) {
-        case 'task-input':
-          top = Math.max(250, viewportHeight * 0.3) + window.scrollY
-          left = (viewportWidth / 2) - (tooltipRect.width / 2)
-          break
-        case 'settings-button':
-          top = 150 + window.scrollY
-          left = Math.min(viewportWidth - tooltipRect.width - 50, viewportWidth - 350)
-          break
-        case 'stats-section':
-          // Position stats fallback at top of viewport to avoid overlap
-          top = 120 + window.scrollY
-          left = (viewportWidth / 2) - (tooltipRect.width / 2)
-          break
-        default:
-          // Safer center positioning
-          top = Math.max(200, viewportHeight * 0.3) + window.scrollY
-          left = (viewportWidth / 2) - (tooltipRect.width / 2)
+      if (isMobile) {
+        // Mobile fallback - always at top with left alignment
+        top = 120 + window.scrollY
+        left = 16
+      } else {
+        // Desktop fallback
+        switch (currentStepData.target) {
+          case 'task-input':
+            top = Math.max(280, viewportHeight * 0.35) + window.scrollY
+            left = (viewportWidth / 2) - (tooltipRect.width / 2)
+            break
+          case 'task-list':
+            top = Math.max(350, viewportHeight * 0.4) + window.scrollY
+            left = (viewportWidth / 2) - (tooltipRect.width / 2)
+            break
+          case 'settings-button':
+            top = 150 + window.scrollY
+            left = Math.min(viewportWidth - tooltipRect.width - 60, viewportWidth - 400)
+            break
+          case 'stats-section':
+            top = 140 + window.scrollY
+            left = (viewportWidth / 2) - (tooltipRect.width / 2)
+            break
+          case 'header':
+            top = 180 + window.scrollY
+            left = (viewportWidth / 2) - (tooltipRect.width / 2)
+            break
+          default:
+            top = Math.max(200, viewportHeight * 0.3) + window.scrollY
+            left = (viewportWidth / 2) - (tooltipRect.width / 2)
+        }
       }
     }
     
-    // Enhanced viewport constraints with safe margins
-    const minTop = 100 + window.scrollY // More space for header
-    const maxTop = window.innerHeight + window.scrollY - tooltipRect.height - 60
-    const minLeft = 20
-    const maxLeft = viewportWidth - tooltipRect.width - 20
+    // Enhanced viewport constraints with mobile-specific margins
+    const minTop = 80 + window.scrollY
+    const maxTop = window.innerHeight + window.scrollY - tooltipRect.height - (isMobile ? 80 : 60)
+    const minLeft = isMobile ? 16 : 24
+    const maxLeft = viewportWidth - tooltipRect.width - (isMobile ? 16 : 24)
     
     // Apply constraints
     left = Math.max(minLeft, Math.min(left, maxLeft))
@@ -312,7 +383,7 @@ export default function Tutorial({ isFirstTime, onComplete, onStepChange }: Tuto
       {/* Floating tooltip with improved positioning and styling */}
       <div
         ref={tooltipRef}
-        className="fixed z-[50] tutorial-tooltip neu-card p-4 animate-in fade-in zoom-in duration-300 shadow-2xl border border-gray-200 dark:border-gray-700"
+        className="fixed z-[50] tutorial-tooltip neu-card p-3 sm:p-4 animate-in fade-in zoom-in duration-300 shadow-2xl border border-gray-200 dark:border-gray-700 max-w-[calc(100vw-32px)] sm:max-w-sm"
         style={{
           top: `${tooltipPosition.top}px`,
           left: `${tooltipPosition.left}px`,
